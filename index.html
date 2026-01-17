@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Minecraft JS - Auto Start</title>
+    <title>Minecraft JS - Final</title>
     <style>
         body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; touch-action: none; }
         #ui { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 4px; font-size: 12px; z-index: 10; pointer-events: none; }
         #crosshair { position: absolute; top: 50%; left: 50%; width: 16px; height: 16px; border: 2px solid white; transform: translate(-50%, -50%); z-index: 5; pointer-events: none; }
-        /* オーバーレイを削除 */
+        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; color: white; cursor: pointer; text-align: center; }
         #hotbar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; background: rgba(0,0,0,0.7); padding: 5px; border-radius: 5px; z-index: 20; }
         .slot { width: 45px; height: 45px; border: 3px solid #555; margin: 0 4px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; cursor: pointer; }
         .selected { border-color: #fff; background-color: rgba(255,255,255,0.3); }
@@ -16,7 +16,8 @@
     </style>
 </head>
 <body>
-    <div id="ui"><b>FINAL EDITION v20.0</b><br>XYZ: <span id="pos" class="stat">0/0/0</span></div>
+    <div id="overlay"><h2>CLICK TO START<br><span style="font-size: 14px;">WASD: Move / Arrows: Look / 1-4: Switch Items</span></h2></div>
+    <div id="ui"><b>V20.0 HYBRID CONTROL</b><br>XYZ: <span id="pos" class="stat">0/0/0</span></div>
     <div id="crosshair"></div>
     <div id="hotbar">
         <div id="s1" class="slot selected" onpointerdown="selectSlot(1)">草</div>
@@ -27,7 +28,6 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        // --- テクスチャ生成などの設定（変更なし） ---
         function createTex(color, noise, size=16) {
             const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size;
             const ctx = canvas.getContext('2d'); ctx.fillStyle = color; ctx.fillRect(0,0,size,size);
@@ -94,14 +94,10 @@
 
         const player = { pos: new THREE.Vector3(0, 10, 0), vel: new THREE.Vector3(), h: 1.6, block: 'grass' };
         const keys = {};
-        let lastTX = 0, lastTY = 0;
 
-        // PCならクリックでマウスロックするように変更
-        document.addEventListener('mousedown', () => {
-            if (document.pointerLockElement !== document.body) {
-                document.body.requestPointerLock();
-            }
-        });
+        const overlay = document.getElementById('overlay');
+        overlay.addEventListener('click', () => document.body.requestPointerLock());
+        document.addEventListener('pointerlockchange', () => overlay.style.display = (document.pointerLockElement === document.body) ? 'none' : 'flex');
 
         function update() {
             player.vel.y -= 0.01; player.pos.y += player.vel.y;
@@ -121,6 +117,13 @@
                 move.normalize().multiplyScalar(spd).applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), camera.rotation.y));
                 player.pos.x += move.x; player.pos.z += move.z;
             }
+
+            const lookSpd = 0.03;
+            if(keys['ArrowLeft']) camera.rotation.y += lookSpd;
+            if(keys['ArrowRight']) camera.rotation.y -= lookSpd;
+            if(keys['ArrowUp']) camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x + lookSpd));
+            if(keys['ArrowDown']) camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x - lookSpd));
+
             camera.position.copy(player.pos);
 
             const VIEW = 12; const px = Math.floor(player.pos.x), pz = Math.floor(player.pos.z);
@@ -170,20 +173,31 @@
         }
 
         document.addEventListener('mousemove', e => { if(document.pointerLockElement === document.body) { camera.rotation.y -= e.movementX * 0.002; camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x - e.movementY * 0.002)); } });
+        let lastTX, lastTY;
         window.addEventListener('touchstart', e => { lastTX = e.touches[0].pageX; lastTY = e.touches[0].pageY; });
         window.addEventListener('touchmove', e => { camera.rotation.y -= (e.touches[0].pageX - lastTX) * 0.005; camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x - (e.touches[0].pageY - lastTY) * 0.005)); lastTX = e.touches[0].pageX; lastTY = e.touches[0].pageY; });
         window.addEventListener('mousedown', e => { if(document.pointerLockElement === document.body) handle(e.button === 2); });
         window.addEventListener('touchend', e => { if(e.target.className !== 'slot') handle(false); });
         
-        function selectSlot(i) { player.block = ['grass', 'stone', 'wood', 'dirt'][i-1]; document.querySelectorAll('.slot').forEach((s, idx) => s.classList.toggle('selected', idx === i-1)); }
+        function selectSlot(i) { 
+            player.block = ['grass', 'stone', 'wood', 'dirt'][i-1]; 
+            document.querySelectorAll('.slot').forEach((s, idx) => s.classList.toggle('selected', idx === i-1)); 
+        }
         
-        window.addEventListener('keydown', e => { keys[e.code] = true; if(e.code==='Space'&&Math.abs(player.vel.y)<0.05)player.vel.y=0.18; });
+        window.addEventListener('keydown', e => { 
+            keys[e.code] = true; 
+            if(e.code==='Space'&&Math.abs(player.vel.y)<0.05)player.vel.y=0.18;
+            // 数字キー1〜4でアイテム切り替え
+            if(e.code==='Digit1') selectSlot(1);
+            if(e.code==='Digit2') selectSlot(2);
+            if(e.code==='Digit3') selectSlot(3);
+            if(e.code==='Digit4') selectSlot(4);
+        });
         window.addEventListener('keyup', e => keys[e.code] = false);
         window.addEventListener('contextmenu', e => e.preventDefault());
 
         scene.add(new THREE.AmbientLight(0xffffff, 0.8));
         const sun = new THREE.DirectionalLight(0xffffff, 0.4); sun.position.set(10, 20, 10); scene.add(sun);
-        
         function animate() { update(); renderer.render(scene, camera); requestAnimationFrame(animate); }
         animate();
     </script>
