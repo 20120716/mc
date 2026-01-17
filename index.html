@@ -1,107 +1,186 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-    <title>iPad MyCraft Online</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Minecraft JS - Final</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #87CEEB; touch-action: none; font-family: sans-serif; }
-        #ui { position: fixed; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 8px; pointer-events: none; }
-        #hotbar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 12px; }
-        .slot { width: 50px; height: 50px; border: 3px solid #fff; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; cursor: pointer; }
-        .slot.active { border-color: #ff0; background: rgba(255,255,0,0.3); }
-        #crosshair { position: fixed; top: 50%; left: 50%; width: 20px; height: 20px; border: 2px solid white; transform: translate(-50%, -50%); pointer-events: none; }
+        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', Courier, monospace; touch-action: none; }
+        #ui { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 4px; font-size: 12px; z-index: 10; pointer-events: none; }
+        #crosshair { position: absolute; top: 50%; left: 50%; width: 16px; height: 16px; border: 2px solid white; transform: translate(-50%, -50%); z-index: 5; pointer-events: none; }
+        #overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 100; color: white; cursor: pointer; text-align: center; }
+        #hotbar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; background: rgba(0,0,0,0.7); padding: 5px; border-radius: 5px; z-index: 20; }
+        .slot { width: 45px; height: 45px; border: 3px solid #555; margin: 0 4px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; cursor: pointer; }
+        .selected { border-color: #fff; background-color: rgba(255,255,255,0.3); }
+        .stat { color: #ffff00; }
     </style>
 </head>
 <body>
-    <div id="ui">XYZ: <span id="pos">0/0/0</span><br>タップでブロック設置</div>
+    <div id="overlay"><h2>CLICK TO START<br><span style="font-size: 14px;">Sky: Clear Blue / Mode: High Graphics</span></h2></div>
+    <div id="ui"><b>FINAL EDITION v20.0</b><br>XYZ: <span id="pos" class="stat">0/0/0</span></div>
     <div id="crosshair"></div>
     <div id="hotbar">
-        <div class="slot active" onclick="setBlock(0)">草</div>
-        <div class="slot" onclick="setBlock(1)">石</div>
-        <div class="slot" onclick="setBlock(2)">木</div>
-        <div class="slot" onclick="setBlock(3)">土</div>
+        <div id="s1" class="slot selected" onpointerdown="selectSlot(1)">草</div>
+        <div id="s2" class="slot" onpointerdown="selectSlot(2)">石</div>
+        <div id="s3" class="slot" onpointerdown="selectSlot(3)">木</div>
+        <div id="s4" class="slot" onpointerdown="selectSlot(4)">土</div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script>
-        let selectedMaterial = 0;
-        const colors = [0x5d9948, 0x808080, 0x8b4513, 0x553311]; // 草, 石, 木, 土
-
-        function setBlock(id) {
-            selectedMaterial = id;
-            const slots = document.querySelectorAll('.slot');
-            slots.forEach((s, i) => s.className = i === id ? 'slot active' : 'slot');
+        // --- テクスチャ生成 ---
+        function createTex(color, noise, size=16) {
+            const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size;
+            const ctx = canvas.getContext('2d'); ctx.fillStyle = color; ctx.fillRect(0,0,size,size);
+            for(let i=0; i<size*size*0.3; i++) { ctx.fillStyle = noise; ctx.fillRect(Math.random()*size, Math.random()*size, 1, 1); }
+            const t = new THREE.CanvasTexture(canvas); t.magFilter = t.minFilter = THREE.NearestFilter; return t;
         }
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87CEEB);
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: false });
+        const skyColor = 0x87CEEB;
+        scene.background = new THREE.Color(skyColor);
+        scene.fog = new THREE.Fog(skyColor, 15, 45); // 霧の色も空と同じ青に
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        camera.rotation.order = 'YXZ';
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        const geo = new THREE.BoxGeometry(1, 1, 1);
-        const blocks = [];
+        const mats = {
+            grass: new THREE.MeshLambertMaterial({ map: createTex('#5d9948', '#4b7d3a') }),
+            stone: new THREE.MeshLambertMaterial({ map: createTex('#888888', '#666666') }),
+            wood:  new THREE.MeshLambertMaterial({ map: createTex('#6b4a2e', '#4d3320') }),
+            leaf:  new THREE.MeshLambertMaterial({ map: createTex('#3a5f25', '#2d4a1d') }),
+            dirt:  new THREE.MeshLambertMaterial({ map: createTex('#7d5435', '#5a3d26') }),
+            sand:  new THREE.MeshLambertMaterial({ map: createTex('#dcc48e', '#cbb07c') }),
+            water: new THREE.MeshLambertMaterial({ map: createTex('#4287f5', '#3366cc'), transparent: true, opacity: 0.6 }),
+            pig:   new THREE.MeshLambertMaterial({ map: createTex('#ffb6c1', '#ff8da1') }),
+            eye:   new THREE.MeshBasicMaterial({ color: 0x000000 })
+        };
 
-        // 初期地面
-        for(let x=-5; x<=5; x++) {
-            for(let z=-5; z<=5; z++) {
-                createBlock(x, 0, z, 0);
+        const worldData = new Map();
+        const voxelGroup = new THREE.Group();
+        const entities = [];
+        scene.add(voxelGroup);
+        const geo = new THREE.BoxGeometry(1, 1, 1);
+
+        function setBlock(x, y, z, mat) {
+            const k = `${Math.round(x)},${Math.round(y)},${Math.round(z)}`;
+            if (worldData.has(k) && worldData.get(k) !== true) return;
+            const m = new THREE.Mesh(geo, mats[mat]); m.position.set(x,y,z);
+            voxelGroup.add(m); worldData.set(k, m);
+        }
+
+        function createTree(x, y, z) {
+            for(let i=0; i<3; i++) setBlock(x, y+i, z, 'wood');
+            [[0,3,0],[1,2,0],[-1,2,0],[0,2,1],[0,2,-1]].forEach(p => setBlock(x+p[0], y+p[1], z+p[2], 'leaf'));
+        }
+
+        function spawnPig(x, y, z) {
+            const pg = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.8), mats.pig); body.position.y = 0.5; pg.add(body);
+            const head = new THREE.Group();
+            const hBox = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.35), mats.pig);
+            const nBox = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.08), mats.pig); nBox.position.set(0,-0.05, 0.2);
+            const e1 = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.05), mats.eye); e1.position.set(0.1, 0.1, 0.18);
+            const e2 = e1.clone(); e2.position.x = -0.1; head.add(hBox, nBox, e1, e2); head.position.set(0, 0.65, 0.45); pg.add(head);
+            const legs = [];
+            [{x:0.2,z:0.25},{x:-0.2,z:0.25},{x:0.2,z:-0.25},{x:-0.2,z:-0.25}].forEach(p => {
+                const l = new THREE.Mesh(new THREE.BoxGeometry(0.15,0.3,0.15), mats.pig); l.position.set(p.x, 0.15, p.z); pg.add(l); legs.push(l);
+            });
+            pg.position.set(x, y, z); scene.add(pg);
+            entities.push({ mesh: pg, legs, vel: new THREE.Vector3(), next: 0, dir: new THREE.Vector3(), cycle: 0 });
+        }
+
+        const player = { pos: new THREE.Vector3(0, 10, 0), vel: new THREE.Vector3(), h: 1.6, block: 'grass' };
+        const keys = {};
+        let lastTX = 0, lastTY = 0;
+
+        const overlay = document.getElementById('overlay');
+        overlay.addEventListener('click', () => document.body.requestPointerLock());
+        document.addEventListener('pointerlockchange', () => overlay.style.display = (document.pointerLockElement === document.body) ? 'none' : 'flex');
+
+        function update() {
+            player.vel.y -= 0.01; player.pos.y += player.vel.y;
+            const bx = Math.round(player.pos.x), bz = Math.round(player.pos.z);
+            let gy = -10;
+            for(let y=20; y>=-10; y--) { 
+                const b = worldData.get(`${bx},${y},${bz}`);
+                if(b && b !== true && b.material !== mats.water) { gy=y; break; }
+            }
+            if(player.pos.y < gy + 0.5 + player.h) { player.pos.y = gy + 0.5 + player.h; player.vel.y = 0; }
+
+            const move = new THREE.Vector3();
+            if(keys['KeyW']) move.z -= 1; if(keys['KeyS']) move.z += 1;
+            if(keys['KeyA']) move.x -= 1; if(keys['KeyD']) move.x += 1;
+            if(move.length() > 0) {
+                const spd = keys['ShiftLeft'] ? 0.2 : 0.12;
+                move.normalize().multiplyScalar(spd).applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), camera.rotation.y));
+                player.pos.x += move.x; player.pos.z += move.z;
+            }
+            camera.position.copy(player.pos);
+
+            const VIEW = 12; const px = Math.floor(player.pos.x), pz = Math.floor(player.pos.z);
+            for(let x = px-VIEW; x <= px+VIEW; x++) {
+                for(let z = pz-VIEW; z <= pz+VIEW; z++) {
+                    const k = `${x},${z}_gen`;
+                    if(!worldData.has(k)) {
+                        let h = Math.floor(Math.sin(x*0.1)*2 + Math.cos(z*0.1)*2 + 2);
+                        if(h > -1) {
+                            setBlock(x, h, z, 'grass'); setBlock(x, h-1, z, 'dirt');
+                            if(Math.random()>0.99) createTree(x, h+1, z);
+                            if(Math.random()>0.998) spawnPig(x, h+2, z);
+                        } else { setBlock(x, h, z, 'sand'); setBlock(x, -1, z, 'water'); }
+                        worldData.set(k, true);
+                    }
+                }
+            }
+            worldData.forEach((v, k) => { if(v !== true && v.position.distanceTo(player.pos) > 30) { voxelGroup.remove(v); worldData.delete(k); worldData.delete(`${Math.round(v.position.x)},${Math.round(v.position.z)}_gen`); } });
+            
+            entities.forEach(p => {
+                p.vel.y -= 0.01; p.mesh.position.y += p.vel.y;
+                let pgy = -10; const pbx = Math.round(p.mesh.position.x), pbz = Math.round(p.mesh.position.z);
+                for(let y=15; y>=-10; y--) { if(worldData.get(`${pbx},${y},${pbz}`) instanceof THREE.Mesh) { pgy=y; break; } }
+                if(p.mesh.position.y < pgy + 1) { p.mesh.position.y = pgy + 1; p.vel.y = 0; }
+                if(Date.now() > p.next) {
+                    if(Math.random() > 0.4) {
+                        const a = Math.random() * 6.28; p.dir.set(Math.cos(a)*0.02, 0, Math.sin(a)*0.02); p.mesh.rotation.y = -a + 1.57;
+                    } else p.dir.set(0,0,0);
+                    p.next = Date.now() + 2000 + Math.random()*3000;
+                }
+                p.mesh.position.add(p.dir);
+                if(p.dir.length() > 0) {
+                    p.cycle += 0.15; const s = Math.sin(p.cycle)*0.5;
+                    p.legs[0].rotation.x = p.legs[3].rotation.x = s; p.legs[1].rotation.x = p.legs[2].rotation.x = -s;
+                }
+            });
+            document.getElementById('pos').innerText = `${Math.floor(player.pos.x)} / ${Math.floor(player.pos.y-player.h)} / ${Math.floor(player.pos.z)}`;
+        }
+
+        function handle(isR) {
+            const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2(0,0), camera);
+            const hits = ray.intersectObjects(voxelGroup.children);
+            if(hits.length > 0) {
+                const o = hits[0].object;
+                if(!isR && o.material !== mats.water) { voxelGroup.remove(o); worldData.delete(`${Math.round(o.position.x)},${Math.round(o.position.y)},${Math.round(o.position.z)}`); }
+                else if(isR) { const p = o.position.clone().add(hits[0].face.normal); setBlock(p.x, p.y, p.z, player.block); }
             }
         }
 
-        function createBlock(x, y, z, matId) {
-            const mat = new THREE.MeshLambertMaterial({ color: colors[matId] });
-            const b = new THREE.Mesh(geo, mat);
-            b.position.set(x, y, z);
-            scene.add(b);
-            blocks.push(b);
-        }
+        document.addEventListener('mousemove', e => { if(document.pointerLockElement === document.body) { camera.rotation.y -= e.movementX * 0.002; camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x - e.movementY * 0.002)); } });
+        window.addEventListener('touchstart', e => { lastTX = e.touches[0].pageX; lastTY = e.touches[0].pageY; });
+        window.addEventListener('touchmove', e => { camera.rotation.y -= (e.touches[0].pageX - lastTX) * 0.005; camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x - (e.touches[0].pageY - lastTY) * 0.005)); lastTX = e.touches[0].pageX; lastTY = e.touches[0].pageY; });
+        window.addEventListener('mousedown', e => { if(document.pointerLockElement === document.body) handle(e.button === 2); });
+        window.addEventListener('touchend', e => { if(e.target.className !== 'slot') handle(false); });
+        function selectSlot(i) { player.block = ['grass', 'stone', 'wood', 'dirt'][i-1]; document.querySelectorAll('.slot').forEach((s, idx) => s.classList.toggle('selected', idx === i-1)); }
+        window.addEventListener('keydown', e => { keys[e.code] = true; if(e.code==='Space'&&Math.abs(player.vel.y)<0.05)player.vel.y=0.18; });
+        window.addEventListener('keyup', e => keys[e.code] = false);
+        window.addEventListener('contextmenu', e => e.preventDefault());
 
         scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-        const light = new THREE.DirectionalLight(0xffffff, 0.5);
-        light.position.set(10, 20, 10);
-        scene.add(light);
-
-        camera.position.set(0, 5, 10);
-        camera.lookAt(0, 0, 0);
-        camera.rotation.order = 'YXZ';
-
-        // --- 操作系 ---
-        let lastX, lastY;
-        window.addEventListener('touchstart', e => {
-            if(e.target.className.includes('slot')) return;
-            lastX = e.touches[0].pageX;
-            lastY = e.touches[0].pageY;
-        });
-
-        window.addEventListener('touchmove', e => {
-            if(e.target.className.includes('slot')) return;
-            const dx = e.touches[0].pageX - lastX;
-            const dy = e.touches[0].pageY - lastY;
-            camera.rotation.y -= dx * 0.005;
-            camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x - dy * 0.005));
-            lastX = e.touches[0].pageX;
-            lastY = e.touches[0].pageY;
-        });
-
-        // タップでブロック設置
-        window.addEventListener('touchend', e => {
-            if(e.target.className.includes('slot')) return;
-            // 前方にブロックを置く簡易システム
-            const dir = new THREE.Vector3();
-            camera.getWorldDirection(dir);
-            const pos = camera.position.clone().add(dir.multiplyScalar(3));
-            createBlock(Math.round(pos.x), Math.round(pos.y), Math.round(pos.z), selectedMaterial);
-        });
-
-        function animate() {
-            requestAnimationFrame(animate);
-            renderer.render(scene, camera);
-            document.getElementById('pos').innerText = 
-                `${Math.round(camera.position.x)}/${Math.round(camera.position.y)}/${Math.round(camera.position.z)}`;
-        }
+        const sun = new THREE.DirectionalLight(0xffffff, 0.4); sun.position.set(10, 20, 10); scene.add(sun);
+        function animate() { update(); renderer.render(scene, camera); requestAnimationFrame(animate); }
         animate();
     </script>
 </body>
