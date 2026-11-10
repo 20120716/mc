@@ -2,6 +2,7 @@
   "rules": {
     "rooms": {
       "$roomCode": {
+        ".read": "auth != null",
         ".write": "auth != null && !newData.exists() && !data.child('players').exists()",
         "info": {
           ".read": "auth != null",
