@@ -78,6 +78,21 @@ function stopHeartbeat() {
   heartbeatTimer = null;
   cleanupTimer = null;
 }
+async function passwordRecord(password) {
+  if (!password) return null;
+  const saltBytes = crypto.getRandomValues(new Uint8Array(16));
+  const salt = Array.from(saltBytes, b => b.toString(16).padStart(2, "0")).join("");
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt + password));
+  const hash = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
+  return {passwordSalt:salt, passwordHash:hash};
+}
+async function passwordMatches(password, roomInfo) {
+  if (!roomInfo.passwordHash) return !password;
+  if (!password) return false;
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(roomInfo.passwordSalt + password));
+  const hash = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
+  return hash === roomInfo.passwordHash;
+}
 async function reserveSlot(code, name, roomInfo) {
   const pRef = ref(db, `rooms/${code}/players`);
   const snap = await get(pRef);
@@ -101,7 +116,7 @@ async function reserveSlot(code, name, roomInfo) {
   startHeartbeat();
   return {roomCode, slot, info, uid};
 }
-export async function createRoom(playerCount, stageNo, name) {
+export async function createRoom(playerCount, stageNo, name, password = "") {
   await ready();
   let code;
   for(let i=0;i<8;i++){
@@ -111,17 +126,19 @@ export async function createRoom(playerCount, stageNo, name) {
     code = null;
   }
   if(!code) throw new Error("ルームコードを作成できませんでした。もう一度試してください");
-  const roomInfo = {hostUid:uid, playerCount:Number(playerCount), stageNo:Number(stageNo), createdAt:Date.now()};
+  const credentials = await passwordRecord(password);
+  const roomInfo = {hostUid:uid, playerCount:Number(playerCount), stageNo:Number(stageNo), createdAt:Date.now(), ...(credentials || {})};
   await set(ref(db,`rooms/${code}/info`), roomInfo);
   return reserveSlot(code,name,roomInfo);
 }
-export async function joinRoom(codeInput, name) {
+export async function joinRoom(codeInput, name, password = "") {
   await ready();
   const code = String(codeInput).trim().toUpperCase();
   if(!/^[A-HJ-NP-Z2-9]{6}$/.test(code)) throw new Error("6桁のルームコードを確認してください");
   const roomRef = ref(db,`rooms/${code}`);
   const snap = await get(ref(db,`rooms/${code}/info`));
   if(!snap.exists()) throw new Error("ルームが見つかりません");
+  if (!(await passwordMatches(password, snap.val()))) throw new Error(snap.val().passwordHash ? "パスワードが違います" : "このルームにはパスワードが設定されていません");
   const playerSnap = await get(ref(db,`rooms/${code}/players`));
   const players = playerSnap.val() || {};
   const now = Date.now();
