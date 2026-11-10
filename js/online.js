@@ -11,7 +11,7 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 const HEARTBEAT_INTERVAL_MS = 1000;
-const PLAYER_TIMEOUT_MS = 12000;
+const PLAYER_TIMEOUT_MS = 15000;
 const WATCHDOG_INTERVAL_MS = 3000;
 
 let roomCode = null;
@@ -19,7 +19,6 @@ let slot = -1;
 let info = null;
 let playersRef = null;
 let chatRef = null;
-let roomRef = null;
 let playerRef = null;
 let playerName = "Player";
 let stopPlayers = null;
@@ -206,7 +205,6 @@ async function reserveSlot(code, name, roomInfo) {
   playerName = cleanName;
   playersRef = pRef;
   chatRef = ref(db, `rooms/${code}/chat`);
-  roomRef = ref(db, `rooms/${code}`);
   playerRef = ownPlayerRef;
   disconnectOperation = disconnect;
 
@@ -335,7 +333,6 @@ export async function leaveRoom() {
   info = null;
   playersRef = null;
   chatRef = null;
-  roomRef = null;
   playerRef = null;
   playerName = "Player";
 }
