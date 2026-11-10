@@ -24,7 +24,9 @@ function unlockAfterClear(stage){
   $("goal").textContent="STAGE CLEAR！ STAGE 02 解放！";
  }
 }
-async function loadGame(n,s,room=null){\n if(!room&&s>unlockedStage())throw new Error("このステージは未解放です。前のステージをクリアしてください");\n currentStage=s;
+async function loadGame(n,s,room=null){
+ if(!room&&s>unlockedStage())throw new Error("このステージは未解放です。前のステージをクリアしてください");
+ currentStage=s;
  const response=await fetch(`mnt/${n}/s${s}.json`);
  if(!response.ok)throw new Error("ステージデータを読み込めません");
  L=await response.json();P=L.spawns.map(([x,y],i)=>({x,y,vx:0,vy:0,w:28,h:42,done:false,ground:false,active:!room||i===room.slot,name:"P"+(i+1)}));
@@ -92,4 +94,5 @@ $("back").onclick=async()=>{running=false;if(online){await leaveRoom();online=fa
 $("swap").onclick=()=>{if(!online&&P.length){selected=(selected+1)%P.length;members();}};
 document.querySelectorAll("[data-k]").forEach(btn=>{const k=btn.dataset.k;btn.onpointerdown=e=>{e.preventDefault();T[k]=true;};btn.onpointerup=btn.onpointerleave=btn.onpointercancel=()=>T[k]=false;});
 $("chatForm").onsubmit=async e=>{e.preventDefault();const v=$("chatInput").value.trim();if(!v)return;if(!online){const p=document.createElement("p");p.className="msg";p.textContent="Player: "+v;$("chatlog").append(p);}else{try{await sendChat(roomName,v);}catch(err){showError("チャット送信に失敗しました");}}$("chatInput").value="";};
-refreshStageOptions();\ndraw();loop();
+refreshStageOptions();
+draw();loop();
