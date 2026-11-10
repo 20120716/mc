@@ -18,6 +18,15 @@ function requireOnlineName(){
 }
 
 let activeMenuView="online",roomRefreshBusy=false;
+function updateOnlineNameButtons(){
+ const hasName=String($("playerName").value||"").trim().length>0;
+ const create=$("create");
+ if(create)create.disabled=create.classList.contains("is-loading")||!hasName;
+ document.querySelectorAll(".room-join").forEach(button=>{
+  button.disabled=button.classList.contains("is-loading")||button.dataset.roomFull==="true"||!hasName;
+  button.title=!hasName?"先にプレイヤー名を入力してください":"";
+ });
+}
 function showMenuView(view){
  activeMenuView=view;
  document.querySelectorAll(".nav-tile").forEach(button=>button.classList.toggle("active",button.dataset.view===view));
@@ -38,7 +47,7 @@ function renderRooms(rooms){
   const meta=document.createElement("div");meta.className="room-card-meta";meta.textContent=String(room.playersNow||0)+"/"+String(room.playerCount)+"人 · STAGE "+String(room.stageNo).padStart(2,"0");
   main.append(title,meta);card.append(main);
   if(room.hasPassword){const pass=document.createElement("input");pass.className="room-password";pass.type="password";pass.placeholder="パスワード";pass.maxLength=32;pass.autocomplete="current-password";card.append(pass);card._password=pass;}
-  const join=document.createElement("button");join.className="room-join";join.textContent="参加 →";join.disabled=Number(room.playersNow)>=Number(room.playerCount);
+  const join=document.createElement("button");join.className="room-join";join.textContent="参加 →";join.dataset.roomFull=String(Number(room.playersNow)>=Number(room.playerCount));join.disabled=join.dataset.roomFull==="true"||!String($("playerName").value||"").trim();join.title=!String($("playerName").value||"").trim()?"先にプレイヤー名を入力してください":"";
   join.onclick=async()=>{roomName=requireOnlineName();if(!roomName)return;try{setBusy(join,true);showError("");showTransition("ルームに参加中","部屋の情報を確認しています");const joined=await joinRoom(room.code,roomName,card._password?.value||"");await loadGame(joined.info.playerCount,joined.info.stageNo,joined);hideTransition();}catch(error){hideTransition();showError(error.message||"参加できませんでした");setBusy(join,false);}};
   card.append(join);list.append(card);
  });
@@ -139,8 +148,8 @@ document.addEventListener("keydown",e=>{K[e.key]=true;if(["ArrowLeft","ArrowRigh
 document.addEventListener("keyup",e=>K[e.key]=false);
 document.querySelectorAll(".nav-tile").forEach(button=>button.onclick=()=>showMenuView(button.dataset.view));
 $("refreshRooms").onclick=refreshRooms;
-$("settingsName").oninput=()=>{$("playerName").value=$("settingsName").value.slice(0,16);$("playerName").setCustomValidity("");showError("");};
-$("playerName").oninput=()=>{$("settingsName").value=$("playerName").value.slice(0,16);$("playerName").setCustomValidity("");showError("");};
+$("settingsName").oninput=()=>{$("playerName").value=$("settingsName").value.slice(0,16);$("playerName").setCustomValidity("");showError("");updateOnlineNameButtons();};
+$("playerName").oninput=()=>{$("settingsName").value=$("playerName").value.slice(0,16);$("playerName").setCustomValidity("");showError("");updateOnlineNameButtons();};
 $("motionToggle").checked=localStorage.getItem("together-motion")!=="off";
 $("motionToggle").onchange=()=>{localStorage.setItem("together-motion",$("motionToggle").checked?"on":"off");document.body.classList.toggle("reduce-motion",!$("motionToggle").checked);};
 document.body.classList.toggle("reduce-motion",!$("motionToggle").checked);
@@ -155,6 +164,7 @@ $("swap").onclick=()=>{if(!online&&P.length){selected=(selected+1)%P.length;memb
 document.querySelectorAll("[data-k]").forEach(btn=>{const k=btn.dataset.k;btn.onpointerdown=e=>{e.preventDefault();T[k]=true;};btn.onpointerup=btn.onpointerleave=btn.onpointercancel=()=>T[k]=false;});
 $("chatForm").onsubmit=async e=>{e.preventDefault();const v=$("chatInput").value.trim();if(!v)return;if(!online){const p=document.createElement("p");p.className="msg";p.textContent="Player: "+v;$("chatlog").append(p);}else{try{await sendChat(roomName,v);}catch(err){showError("チャット送信に失敗しました");}}$("chatInput").value="";};
 refreshStageOptions();
+updateOnlineNameButtons();
 $("offlineStage").value=$("stageNo").value;
 showMenuView("online");
 setInterval(()=>{if(activeMenuView==="online"&&!$("menu").classList.contains("hide"))refreshRooms();},5000);
