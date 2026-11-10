@@ -89,6 +89,50 @@ main.game-enter canvas{animation:canvasReveal .65s cubic-bezier(.16,1,.3,1) both
 @media(max-width:720px){.menu-shell{grid-template-columns:1fr;max-width:520px}.menu-intro{min-height:auto;padding:22px 24px}.menu-intro h1{font-size:38px}.menu-lead{margin:8px 0 15px}.feature-list{grid-template-columns:repeat(3,1fr);gap:7px}.feature{align-items:flex-start;gap:6px}.feature>span{padding:5px}.feature b{font-size:8px}.feature small{font-size:9px}.menu-footnote{display:none}.menu-actions{padding:22px 24px}.menu-intro:after{width:200px;height:200px;top:15px}.transition-card{margin:16px;padding:28px 22px}}
 @media(prefers-reduced-motion:reduce){.menu-shell,.transition-card,.loader-orbit{animation:none!important;transition:none!important}}
 
+
+/* Three-section navigation and room browser */
+.menu-shell{grid-template-columns:.72fr 1.28fr;max-width:1000px}
+.menu-nav{padding:28px 22px;min-height:620px;gap:12px}
+.nav-brand{display:flex;align-items:center;gap:11px;margin:0 0 24px}
+.nav-brand .brand-mark{font-size:27px}
+.nav-brand b,.nav-brand small{display:block}.nav-brand b{font-size:15px;letter-spacing:.12em}.nav-brand small{font-size:9px;color:#85abc4;letter-spacing:.18em;margin-top:3px}
+.nav-tile{display:flex;align-items:center;gap:13px;width:100%;min-height:112px;text-align:left;padding:18px 14px;border:1px solid #31516b;border-radius:15px;background:linear-gradient(135deg,#15334d,#10263c);color:#dff4ff;box-shadow:none}
+.nav-tile .nav-icon{display:grid;place-items:center;flex:0 0 42px;height:42px;border-radius:12px;background:#214963;color:#8eeaff;font-size:22px}
+.nav-tile b,.nav-tile small{display:block}.nav-tile b{font-size:13px;letter-spacing:.15em}.nav-tile small{font-size:10px;color:#9ab8ce;margin-top:5px;letter-spacing:0}
+.nav-tile i{font-style:normal;margin-left:auto;color:#80dff5;font-size:18px;opacity:.55;transition:transform .2s,opacity .2s}
+.nav-tile:hover i,.nav-tile.active i{opacity:1;transform:translateX(4px)}
+.nav-tile.active{border-color:#69d9ef;background:linear-gradient(120deg,#1b5874,#153a55);box-shadow:0 8px 28px #00b9e522}
+.nav-tile.active .nav-icon{background:#2a6a83;color:#fff}
+.menu-nav .menu-footnote{margin-top:auto}
+.menu-actions{min-width:0;padding:27px 30px;max-height:88vh;overflow:auto}
+.view-panel{display:none;animation:viewIn .32s cubic-bezier(.16,1,.3,1) both}
+.view-panel.active{display:block}
+.room-toolbar{display:flex;align-items:center;justify-content:space-between;margin:0 0 10px;padding-bottom:10px;border-bottom:1px solid #29465e}
+.room-toolbar b,.room-toolbar small{display:block}.room-toolbar b{font-size:12px}.room-toolbar small{font-size:10px;color:#83a4bb;margin-top:3px}
+.icon-button{width:36px;height:36px;padding:0;border-radius:10px;background:#173d58;color:#8eeaff;font-size:20px}
+.room-list{display:grid;gap:8px;max-height:220px;overflow:auto;padding:2px 3px 5px}
+.room-empty{min-height:112px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:1px dashed #345b74;border-radius:13px;color:#b8d6e8}
+.room-empty-icon{font-size:23px;color:#73dff6}.room-empty b{font-size:12px}.room-empty small{font-size:10px;color:#809db3}
+.room-card{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #2c4b64;border-radius:12px;background:#10283d;animation:roomCardIn .25s ease both}
+.room-card-main{min-width:0;flex:1}.room-card-title{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:750}.room-card-meta{font-size:10px;color:#91afc5;margin-top:4px}
+.room-lock{font-size:13px;color:#ffd27e}.room-open{font-size:10px;color:#7fe5bc}
+.room-join{padding:8px 11px;font-size:11px;border-radius:9px;background:#1c6077;border-color:#4d9ab0;white-space:nowrap}
+.room-password{width:112px;min-width:0;padding:8px!important;font-size:11px!important}
+.create-room-box{margin-top:14px;padding-top:3px;border-top:1px solid #29465e}
+.create-room-box .section-caption{margin-top:14px}
+.menu-actions .row{margin:0}.menu-actions label{margin:9px 0 5px}
+.menu-actions input,.menu-actions select{min-height:38px;padding:8px 10px}
+.primary-action{margin-top:12px}
+.mode-pill{font-size:9px;letter-spacing:.14em;color:#9bb8cb;border:1px solid #466078;border-radius:20px;padding:7px 10px}
+.panel-description{font-size:12px;color:#a9c5d9;line-height:1.7;margin:8px 0 22px}
+.offline-start{margin-top:24px}
+.setting-row{display:flex!important;align-items:center;justify-content:space-between;gap:14px;padding:14px;margin-top:18px!important;border:1px solid #31516b;border-radius:12px;background:#10283d}
+.setting-row b,.setting-row small{display:block}.setting-row small{font-size:10px;color:#8eabc0;margin-top:4px}.setting-row input{width:20px!important;height:20px;accent-color:#64d8ee}
+body.reduce-motion *,body.reduce-motion *:before,body.reduce-motion *:after{animation:none!important;transition:none!important}
+@keyframes viewIn{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+@keyframes roomCardIn{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:none}}
+@media(max-width:720px){.menu-shell{grid-template-columns:1fr}.menu-nav{min-height:0;padding:17px;display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.nav-brand{grid-column:1/-1;margin:0 0 5px}.nav-tile{min-height:84px;flex-direction:column;align-items:flex-start;gap:5px;padding:9px}.nav-tile .nav-icon{width:29px;height:29px;flex-basis:29px;font-size:16px}.nav-tile b{font-size:10px}.nav-tile small{font-size:8px}.nav-tile i{display:none}.menu-nav .menu-footnote{display:none}.menu-actions{padding:19px;max-height:58vh}.room-list{max-height:170px}}
+
 </style></head><body>
 <header><span>✦ TOGETHER — CO-OP PUZZLE (2–4 PLAYERS)</span><span id="status">未接続</span></header>
 <main><section class="panel"><div class="row"><b id="stage">STAGE —</b><span id="goal">ルームに参加しよう</span><button id="back">メニュー</button></div><canvas id="game" width="960" height="540"></canvas>
@@ -99,34 +143,45 @@ main.game-enter canvas{animation:canvasReveal .65s cubic-bezier(.16,1,.3,1) both
 <section class="panel hint">ステージデータ：<code>mnt/人数/s番号.json</code></section></aside></main>
 <div id="menu">
  <div class="dialog menu-shell">
-  <section class="menu-intro">
-   <div class="brand-mark">✦</div>
-   <p class="eyebrow">CO-OP PUZZLE / ONLINE</p>
-   <h1>TOGETHER<span>.</span></h1>
-   <p class="menu-lead">ひとりじゃ開かない道を、みんなで。</p>
-   <div class="feature-list">
-    <div class="feature"><span>01</span><div><b>TEAM UP</b><small>最大4人で協力プレイ</small></div></div>
-    <div class="feature"><span>02</span><div><b>THINK TOGETHER</b><small>スイッチと仕掛けを攻略</small></div></div>
-    <div class="feature"><span>03</span><div><b>REACH THE EXIT</b><small>全員そろってゴールしよう</small></div></div>
-   </div>
+  <section class="menu-intro menu-nav">
+   <div class="nav-brand"><span class="brand-mark">✦</span><div><b>TOGETHER</b><small>CO-OP PUZZLE</small></div></div>
+   <button class="nav-tile active" data-view="online"><span class="nav-icon">◎</span><span><b>ONLINE</b><small>ルームを探して一緒に遊ぶ</small></span><i>→</i></button>
+   <button class="nav-tile" data-view="offline"><span class="nav-icon">▣</span><span><b>OFFLINE</b><small>同じ端末で遊ぶ</small></span><i>→</i></button>
+   <button class="nav-tile" data-view="settings"><span class="nav-icon">⚙</span><span><b>SETTINGS</b><small>ゲームの設定</small></span><i>→</i></button>
    <div class="menu-footnote">MOVE TOGETHER. CLEAR TOGETHER.</div>
   </section>
+
   <section class="menu-actions">
-   <div class="menu-heading"><div><p class="eyebrow">LET'S PLAY</p><h2>ゲームを始める</h2></div><span class="online-pill"><i></i> ONLINE</span></div>
-   <label for="playerName">プレイヤー名</label><input id="playerName" maxlength="16" placeholder="Player" autocomplete="nickname">
-   <div class="row menu-selects"><div><label for="count">人数</label><select id="count"><option value="2">2人</option><option value="3">3人</option><option value="4">4人</option></select></div><div><label for="stageNo">ステージ</label><select id="stageNo"><option value="1">STAGE 01</option><option value="2" disabled>🔒 STAGE 02（STAGE 01クリアで解放）</option></select></div></div>
-   <div class="section-caption"><span>01</span> CREATE A ROOM</div>
-   <label for="createPasswordMode">ルームのパスワード</label>
-   <div class="row"><select id="createPasswordMode"><option value="none">パスワードなし</option><option value="password">パスワードあり</option></select><input id="createPassword" type="password" maxlength="32" placeholder="4〜32文字" autocomplete="new-password" disabled></div>
-   <button id="create" class="primary-action" style="width:100%"><span>ルームを作成</span><b>↗</b></button>
-   <div class="section-caption join-caption"><span>02</span> JOIN A ROOM</div>
-   <label for="roomCode">参加コード（6文字）</label>
-   <div class="row join-row"><input id="roomCode" maxlength="6" placeholder="例：A2BC3D" autocomplete="off"><button id="join" class="join-action">参加する <b>→</b></button></div>
-   <label for="joinPassword">パスワード（設定されている場合）</label><input id="joinPassword" type="password" maxlength="32" placeholder="パスワード" autocomplete="current-password">
-   <button id="local" class="local-action" style="width:100%">同じ端末で遊ぶ <span>→</span></button>
+   <div class="view-panel active" data-panel="online">
+    <div class="menu-heading"><div><p class="eyebrow">MULTIPLAYER</p><h2>ルームを探す</h2></div><span class="online-pill"><i></i> ONLINE</span></div>
+    <div class="room-toolbar"><div><b>公開ルーム</b><small>参加できるルームが表示されます</small></div><button id="refreshRooms" class="icon-button" title="一覧を更新">↻</button></div>
+    <div id="roomList" class="room-list"><div class="room-empty"><span class="room-empty-icon">⌁</span><b>ルームを読み込みます</b><small>オンラインを開いて一覧を更新してください</small></div></div>
+    <div class="create-room-box">
+     <div class="section-caption"><span>＋</span> CREATE NEW ROOM</div>
+     <label for="playerName">プレイヤー名</label><input id="playerName" maxlength="16" placeholder="Player" autocomplete="nickname">
+     <div class="row menu-selects"><div><label for="count">人数</label><select id="count"><option value="2">2人</option><option value="3">3人</option><option value="4">4人</option></select></div><div><label for="stageNo">ステージ</label><select id="stageNo"><option value="1">STAGE 01</option><option value="2" disabled>🔒 STAGE 02（STAGE 01クリアで解放）</option></select></div></div>
+     <label for="createPasswordMode">ルームのパスワード</label>
+     <div class="row"><select id="createPasswordMode"><option value="none">パスワードなし</option><option value="password">🔒 パスワードあり</option></select><input id="createPassword" type="password" maxlength="32" placeholder="4〜32文字" autocomplete="new-password" disabled></div>
+     <button id="create" class="primary-action" style="width:100%"><span>ルームを作成</span><b>↗</b></button>
+    </div>
+   </div>
+   <div class="view-panel" data-panel="offline">
+    <div class="menu-heading"><div><p class="eyebrow">LOCAL CO-OP</p><h2>オフラインで遊ぶ</h2></div><span class="mode-pill">OFFLINE</span></div>
+    <p class="panel-description">ひとつの端末で複数のプレイヤーを操作して遊べます。</p>
+    <label for="offlineCount">プレイヤー人数</label><select id="offlineCount"><option value="2">2人</option><option value="3">3人</option><option value="4">4人</option></select>
+    <label for="offlineStage">ステージ</label><select id="offlineStage"><option value="1">STAGE 01</option><option value="2" disabled>🔒 STAGE 02（STAGE 01クリアで解放）</option></select>
+    <button id="local" class="primary-action offline-start" style="width:100%"><span>ゲームを始める</span><b>→</b></button>
+   </div>
+   <div class="view-panel" data-panel="settings">
+    <div class="menu-heading"><div><p class="eyebrow">PREFERENCES</p><h2>設定</h2></div><span class="mode-pill">SETTINGS</span></div>
+    <label for="settingsName">プレイヤー名</label><input id="settingsName" maxlength="16" placeholder="Player" autocomplete="nickname">
+    <label class="setting-row"><span><b>モーション効果</b><small>画面切り替えやアニメーションを有効にする</small></span><input id="motionToggle" type="checkbox" checked></label>
+    <p class="security-note">設定はこのブラウザに保存されます。</p>
+   </div>
    <div id="error" class="hint menu-message" aria-live="polite"></div>
-   <p class="security-note">Firebase匿名認証を使用します。初回はネット接続が必要です。</p>
+   <p class="security-note">オンラインはFirebase匿名認証を使用します。初回はネット接続が必要です。</p>
   </section>
+
  </div>
 </div>
 <div id="transitionScreen" class="transition-screen" aria-live="polite">
