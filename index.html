@@ -21,6 +21,74 @@ input:focus,select:focus{outline:none;border-color:#8eeaff;box-shadow:0 0 0 3px 
 @keyframes panelIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @keyframes messageIn{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+/* TOGETHER menu refresh + real transitions */
+:root{color-scheme:dark}
+body{background:radial-gradient(ellipse at 18% 0%,#173958 0,#0a1727 42%,#050c16 100%);min-height:100vh}
+header{background:#0b1a2bdc;border-bottom:1px solid #29445f;backdrop-filter:blur(14px);letter-spacing:.04em}
+#menu{background:linear-gradient(135deg,#06101ef2,#091b2ded);backdrop-filter:blur(16px);opacity:1;transition:opacity .34s ease,transform .34s ease}
+#menu.hide{display:none}
+#menu.is-leaving{opacity:0;transform:scale(1.025);pointer-events:none}
+.menu-shell{max-width:920px;width:min(920px,100%);max-height:94vh;overflow:auto;padding:0;display:grid;grid-template-columns:.86fr 1.14fr;border:1px solid #345675;border-radius:24px;background:#0c1b2c;box-shadow:0 32px 100px #000a;animation:menuShellIn .58s cubic-bezier(.16,1,.3,1) both}
+.menu-intro{position:relative;overflow:hidden;padding:38px 32px;background:linear-gradient(150deg,#153a59,#10273f 62%,#0d2035);display:flex;flex-direction:column;min-height:590px}
+.menu-intro:after{content:"";position:absolute;width:320px;height:320px;border:1px solid #72dfff22;border-radius:50%;right:-170px;top:80px;box-shadow:0 0 0 34px #72dfff08,0 0 0 70px #72dfff06}
+.brand-mark{font-size:30px;color:#8eeaff;text-shadow:0 0 25px #5edfff99}
+.eyebrow{font-size:10px;letter-spacing:.22em;font-weight:800;color:#78cce8;margin:12px 0}
+.menu-intro h1{font-size:clamp(38px,5vw,58px);letter-spacing:-.06em;margin:0;line-height:1.05}
+.menu-intro h1 span{color:#70e3ff}
+.menu-lead{font-size:14px;color:#c3d9e9;margin:14px 0 34px}
+.feature-list{display:grid;gap:18px;position:relative;z-index:1}
+.feature{display:flex;align-items:center;gap:13px}
+.feature>span{font-size:11px;color:#7ce4ff;border:1px solid #5ab9d766;border-radius:9px;padding:8px}
+.feature b,.feature small{display:block}.feature b{font-size:11px;letter-spacing:.12em}.feature small{font-size:11px;color:#9db9ce;margin-top:3px}
+.menu-footnote{margin-top:auto;color:#77a8c3;font-size:9px;letter-spacing:.2em}
+.menu-actions{padding:30px 34px 24px}
+.menu-heading{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.menu-heading .eyebrow{margin:0 0 5px}
+.menu-heading h2{font-size:22px;margin:0}
+.online-pill{font-size:9px;letter-spacing:.12em;color:#8eeaff;border:1px solid #397b8c;border-radius:20px;padding:7px 10px}
+.online-pill i{display:inline-block;width:6px;height:6px;border-radius:50%;background:#59e5b0;box-shadow:0 0 10px #59e5b0;margin-right:5px}
+.menu-actions label{margin:12px 0 6px;font-size:11px;color:#a9c5d9}
+.menu-actions input,.menu-actions select{width:100%;background:#102b43;border-color:#315775;border-radius:10px;min-height:42px;font-size:13px}
+.menu-actions .row{gap:9px;margin:0}
+.menu-actions .row>*{min-width:0}
+.menu-selects{margin-top:5px!important}
+.section-caption{display:flex;align-items:center;gap:9px;margin:22px 0 3px;color:#8eeaff;font-size:9px;letter-spacing:.18em;font-weight:800}
+.section-caption span{display:grid;place-items:center;width:20px;height:20px;border-radius:6px;background:#1b405a;color:#9beaff}
+.primary-action,.join-action{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #70dff5;background:linear-gradient(100deg,#176b87,#1a8ca1);border-radius:11px;padding:12px 15px;font-weight:750;font-size:13px;box-shadow:0 8px 24px #00b8df20}
+.primary-action b,.join-action b{font-size:18px}
+.primary-action:hover,.join-action:hover{background:linear-gradient(100deg,#2186a5,#20a8b8);box-shadow:0 9px 28px #00b8df35}
+.join-caption{margin-top:20px}
+.join-row input{flex:1.2}
+.join-action{flex:1;justify-content:center;white-space:nowrap;background:#173d58;border-color:#3f7795}
+.local-action{margin-top:14px;background:transparent;border:1px solid #34536d;color:#b9d6e8;border-radius:10px;font-size:12px}
+.local-action span{float:right;color:#8eeaff}
+.menu-message{min-height:20px;margin:9px 0 0;color:#ffcf86}
+.security-note{font-size:10px;color:#718da4;margin:5px 0 0}
+.menu-actions button:disabled{opacity:.55;cursor:wait;transform:none}
+.menu-actions button.is-loading{pointer-events:none;opacity:.8}
+.menu-actions button.is-loading:before{content:"";width:13px;height:13px;border:2px solid #ffffff55;border-top-color:white;border-radius:50%;animation:spin .7s linear infinite}
+.transition-screen{position:fixed;inset:0;z-index:5;display:grid;place-items:center;background:#06101ef0;backdrop-filter:blur(18px);opacity:0;visibility:hidden;transition:opacity .25s ease,visibility .25s ease}
+.transition-screen.active{opacity:1;visibility:visible}
+.transition-card{text-align:center;padding:36px 48px;border:1px solid #315d78;border-radius:20px;background:linear-gradient(145deg,#122b43,#0a1929);box-shadow:0 24px 80px #0008;transform:translateY(14px) scale(.97);transition:transform .35s cubic-bezier(.16,1,.3,1)}
+.transition-screen.active .transition-card{transform:none}
+.transition-card h2{margin:6px 0;font-size:23px}.transition-card>p:last-child{font-size:12px;color:#a9c5d9}
+.loader-orbit{width:48px;height:48px;margin:0 auto 18px;border:2px solid #28516c;border-top-color:#8eeaff;border-radius:50%;animation:spin .9s linear infinite;position:relative}
+.loader-orbit i{position:absolute;width:7px;height:7px;border-radius:50%;background:#8eeaff;top:2px;left:4px;box-shadow:0 0 12px #8eeaff}
+.loader-orbit i:nth-child(2){top:auto;left:auto;right:-2px;bottom:8px;background:#70e6bd}
+.loader-orbit i:nth-child(3){top:auto;bottom:-2px;left:12px;background:#ffbd75}
+.loading-dots:after{content:"";display:inline-block;width:18px;text-align:left;animation:dots 1.2s steps(4,end) infinite}
+main.game-enter>.panel,main.game-enter>.side{animation:gameEnter .55s cubic-bezier(.16,1,.3,1) both}
+main.game-enter>.side{animation-delay:.09s}
+main.game-enter canvas{animation:canvasReveal .65s cubic-bezier(.16,1,.3,1) both}
+@keyframes menuShellIn{from{opacity:0;transform:translateY(24px) scale(.975)}to{opacity:1;transform:none}}
+@keyframes gameEnter{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes canvasReveal{from{opacity:.5;filter:blur(5px);transform:scale(.985)}to{opacity:1;filter:blur(0);transform:none}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%,100%{content:"..."}}
+@media(max-width:720px){.menu-shell{grid-template-columns:1fr;max-width:520px}.menu-intro{min-height:auto;padding:22px 24px}.menu-intro h1{font-size:38px}.menu-lead{margin:8px 0 15px}.feature-list{grid-template-columns:repeat(3,1fr);gap:7px}.feature{align-items:flex-start;gap:6px}.feature>span{padding:5px}.feature b{font-size:8px}.feature small{font-size:9px}.menu-footnote{display:none}.menu-actions{padding:22px 24px}.menu-intro:after{width:200px;height:200px;top:15px}.transition-card{margin:16px;padding:28px 22px}}
+@media(prefers-reduced-motion:reduce){.menu-shell,.transition-card,.loader-orbit{animation:none!important;transition:none!important}}
+
 </style></head><body>
 <header><span>✦ TOGETHER — CO-OP PUZZLE (2–4 PLAYERS)</span><span id="status">未接続</span></header>
 <main><section class="panel"><div class="row"><b id="stage">STAGE —</b><span id="goal">ルームに参加しよう</span><button id="back">メニュー</button></div><canvas id="game" width="960" height="540"></canvas>
@@ -29,12 +97,40 @@ input:focus,select:focus{outline:none;border-color:#8eeaff;box-shadow:0 0 0 3px 
 <aside class="side"><section class="panel"><b>遊び方</b><p class="hint">誰かがスイッチを踏むとゲートが開く！全員で出口へ進もう。</p><div id="members" class="hint"></div></section>
 <section class="panel"><b>💬 オンラインチャット</b><div id="chatlog">ルームに入るとチャットできます。</div><form id="chatForm" class="row"><input id="chatInput" placeholder="メッセージ..." maxlength="160"><button>送信</button></form></section>
 <section class="panel hint">ステージデータ：<code>mnt/人数/s番号.json</code></section></aside></main>
-<div id="menu"><div class="dialog"><h2>TOGETHER</h2><p class="hint">オンライン協力プレイ。ルームを作るか、コードで参加しよう！</p>
-<label>プレイヤー名</label><input id="playerName" maxlength="16" placeholder="Player">
-<div class="row"><div><label>人数</label><select id="count"><option value="2">2人</option><option value="3">3人</option><option value="4">4人</option></select></div><div><label>ステージ</label><select id="stageNo"><option value="1">STAGE 01</option><option value="2" disabled>🔒 STAGE 02（STAGE 01クリアで解放）</option></select></div></div>
-<label>ルームのパスワード</label><div class="row"><select id="createPasswordMode"><option value="none">パスワードなし</option><option value="password">パスワードあり</option></select><input id="createPassword" type="password" maxlength="32" placeholder="4〜32文字" autocomplete="new-password" disabled></div>
-<button id="create" style="width:100%">オンラインルームを作成</button>
-<label>参加コード（6文字）</label><div class="row"><input id="roomCode" maxlength="6" placeholder="例：A2BC3D"><button id="join">参加</button></div><label>パスワード（設定されている場合）</label><input id="joinPassword" type="password" maxlength="32" placeholder="パスワード" autocomplete="current-password" style="width:100%">
-<hr style="border-color:#29445f;margin:16px 0"><button id="local" style="width:100%">同じ端末で遊ぶ（ローカル）</button>
-<p class="hint">Firebase匿名認証を使用します。初回はネット接続が必要です。</p><div id="error" class="hint"></div></div></div>
-<script type="module" src="js/game.js"></script></body></html>
+<div id="menu">
+ <div class="dialog menu-shell">
+  <section class="menu-intro">
+   <div class="brand-mark">✦</div>
+   <p class="eyebrow">CO-OP PUZZLE / ONLINE</p>
+   <h1>TOGETHER<span>.</span></h1>
+   <p class="menu-lead">ひとりじゃ開かない道を、みんなで。</p>
+   <div class="feature-list">
+    <div class="feature"><span>01</span><div><b>TEAM UP</b><small>最大4人で協力プレイ</small></div></div>
+    <div class="feature"><span>02</span><div><b>THINK TOGETHER</b><small>スイッチと仕掛けを攻略</small></div></div>
+    <div class="feature"><span>03</span><div><b>REACH THE EXIT</b><small>全員そろってゴールしよう</small></div></div>
+   </div>
+   <div class="menu-footnote">MOVE TOGETHER. CLEAR TOGETHER.</div>
+  </section>
+  <section class="menu-actions">
+   <div class="menu-heading"><div><p class="eyebrow">LET'S PLAY</p><h2>ゲームを始める</h2></div><span class="online-pill"><i></i> ONLINE</span></div>
+   <label for="playerName">プレイヤー名</label><input id="playerName" maxlength="16" placeholder="Player" autocomplete="nickname">
+   <div class="row menu-selects"><div><label for="count">人数</label><select id="count"><option value="2">2人</option><option value="3">3人</option><option value="4">4人</option></select></div><div><label for="stageNo">ステージ</label><select id="stageNo"><option value="1">STAGE 01</option><option value="2" disabled>🔒 STAGE 02（STAGE 01クリアで解放）</option></select></div></div>
+   <div class="section-caption"><span>01</span> CREATE A ROOM</div>
+   <label for="createPasswordMode">ルームのパスワード</label>
+   <div class="row"><select id="createPasswordMode"><option value="none">パスワードなし</option><option value="password">パスワードあり</option></select><input id="createPassword" type="password" maxlength="32" placeholder="4〜32文字" autocomplete="new-password" disabled></div>
+   <button id="create" class="primary-action" style="width:100%"><span>ルームを作成</span><b>↗</b></button>
+   <div class="section-caption join-caption"><span>02</span> JOIN A ROOM</div>
+   <label for="roomCode">参加コード（6文字）</label>
+   <div class="row join-row"><input id="roomCode" maxlength="6" placeholder="例：A2BC3D" autocomplete="off"><button id="join" class="join-action">参加する <b>→</b></button></div>
+   <label for="joinPassword">パスワード（設定されている場合）</label><input id="joinPassword" type="password" maxlength="32" placeholder="パスワード" autocomplete="current-password">
+   <button id="local" class="local-action" style="width:100%">同じ端末で遊ぶ <span>→</span></button>
+   <div id="error" class="hint menu-message" aria-live="polite"></div>
+   <p class="security-note">Firebase匿名認証を使用します。初回はネット接続が必要です。</p>
+  </section>
+ </div>
+</div>
+<div id="transitionScreen" class="transition-screen" aria-live="polite">
+ <div class="transition-card"><div class="loader-orbit"><i></i><i></i><i></i></div><p class="eyebrow">TOGETHER / CONNECTING</p><h2 id="transitionTitle">ルームに接続中</h2><p id="transitionDetail">メンバーを確認しています<span class="loading-dots"></span></p></div>
+</div>
+</div></div>
+<script type="module" src="js/game.js"></script>s"></script></body></html>
