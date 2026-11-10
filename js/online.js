@@ -126,6 +126,9 @@ async function reserveSlot(code, name, roomInfo) {
   return {roomCode, slot, info, uid};
 }
 export async function createRoom(playerCount, stageNo, name, password = "") {
+  const cleanName = String(name || "").trim().slice(0,16);
+  if (!cleanName) throw new Error("オンラインで遊ぶにはプレイヤー名を入力してください");
+  name = cleanName;
   await ready();
   let code;
   for(let i=0;i<8;i++){
@@ -150,9 +153,44 @@ export async function listRooms() {
   await ready();
   const snap = await get(ref(db, "publicRooms"));
   const now = Date.now();
-  return Object.values(snap.val() || {}).filter(room => room && room.code && now - Number(room.lastActivityAt || room.createdAt || 0) < 45000).sort((a,b)=>Number(b.lastActivityAt||b.createdAt)-Number(a.lastActivityAt||a.createdAt));
+  const directory = Object.values(snap.val() || {}).filter(room => room && room.code);
+  const visible = await Promise.all(directory.map(async room => {
+    try {
+      const [infoSnap, playersSnap] = await Promise.all([
+        get(ref(db, `rooms/${room.code}/info`)),
+        get(ref(db, `rooms/${room.code}/players`))
+      ]);
+      const players = playersSnap.val() || {};
+      const livePlayers = Object.entries(players).filter(([, player]) => {
+        const beat = Number(player.heartbeatAt || player.updatedAt || 0);
+        return beat > 0 && now - beat <= STALE_AFTER_MS;
+      });
+      if (!infoSnap.exists() || livePlayers.length === 0) {
+        await cleanupEmptyRoom(room.code);
+        await remove(ref(db, `publicRooms/${room.code}`));
+        return null;
+      }
+      if (livePlayers.length !== Object.keys(players).length) {
+        const live = Object.fromEntries(livePlayers);
+        await set(ref(db, `rooms/${room.code}/players`), live);
+      }
+      const lastActivityAt = Number(room.lastActivityAt || room.createdAt || 0);
+      if (now - lastActivityAt >= 45000) {
+        await remove(ref(db, `publicRooms/${room.code}`));
+        return null;
+      }
+      return {...room, playersNow:livePlayers.length};
+    } catch (error) {
+      console.warn("room list validation failed", room.code, error);
+      return null;
+    }
+  }));
+  return visible.filter(Boolean).sort((a,b)=>Number(b.lastActivityAt||b.createdAt)-Number(a.lastActivityAt||a.createdAt));
 }
 export async function joinRoom(codeInput, name, password = "") {
+  const cleanName = String(name || "").trim().slice(0,16);
+  if (!cleanName) throw new Error("オンラインで遊ぶにはプレイヤー名を入力してください");
+  name = cleanName;
   await ready();
   const code = String(codeInput).trim().toUpperCase();
   if(!/^[A-HJ-NP-Z2-9]{6}$/.test(code)) throw new Error("6桁のルームコードを確認してください");
