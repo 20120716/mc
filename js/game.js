@@ -1,8 +1,42 @@
-import { createRoom, joinRoom, watchPlayers, watchChat, updateMyPlayer, sendChat, leaveRoom } from "./online.js";
+import { createRoom, joinRoom, listRooms, watchPlayers, watchChat, updateMyPlayer, sendChat, leaveRoom } from "./online.js";
 const $=id=>document.getElementById(id),canvas=$("game"),ctx=canvas.getContext("2d"),W=960,H=540;
 const colors=["#4ed8ff","#ffae58","#b89cff","#83e28c"],maps=[{l:"a",r:"d",j:"w"},{l:"ArrowLeft",r:"ArrowRight",j:"ArrowUp"},{l:"j",r:"l",j:"i"},{l:"4",r:"6",j:"8"}];
 let L=null,P=[],K={},T={left:false,right:false,jump:false},selected=0,gateOpen=false,won=false,running=false,online=false,mySlot=-1,myUid=null,roomName="Player",lastSync=0,currentStage=1;
 function showError(msg){$("error").textContent=msg||""}
+
+let activeMenuView="online";
+function showMenuView(view){
+ activeMenuView=view;
+ document.querySelectorAll(".nav-tile").forEach(button=>button.classList.toggle("active",button.dataset.view===view));
+ document.querySelectorAll(".view-panel").forEach(panel=>panel.classList.toggle("active",panel.dataset.panel===view));
+ if(view==="online") refreshRooms();
+ if(view==="settings") $("settingsName").value=$("playerName").value;
+}
+function renderRooms(rooms){
+ const list=$("roomList");list.replaceChildren();
+ if(!rooms.length){const empty=document.createElement("div");empty.className="room-empty";empty.innerHTML='<span class="room-empty-icon">⌁</span><b>公開ルームはありません</b><small>新しくルームを作成して友達を招待しよう</small>';list.append(empty);return;}
+ rooms.forEach(room=>{
+  const card=document.createElement("div");card.className="room-card";
+  const main=document.createElement("div");main.className="room-card-main";
+  const title=document.createElement("div");title.className="room-card-title";
+  const lock=document.createElement("span");lock.className=room.hasPassword?"room-lock":"room-open";lock.textContent=room.hasPassword?"🔒":"🌐";
+  const code=document.createElement("span");code.textContent=room.code;
+  title.append(lock,code);
+  const meta=document.createElement("div");meta.className="room-card-meta";meta.textContent=String(room.playersNow||0)+"/"+String(room.playerCount)+"人 · STAGE "+String(room.stageNo).padStart(2,"0");
+  main.append(title,meta);card.append(main);
+  if(room.hasPassword){const pass=document.createElement("input");pass.className="room-password";pass.type="password";pass.placeholder="パスワード";pass.maxLength=32;pass.autocomplete="current-password";card.append(pass);card._password=pass;}
+  const join=document.createElement("button");join.className="room-join";join.textContent="参加 →";join.disabled=Number(room.playersNow)>=Number(room.playerCount);
+  join.onclick=async()=>{try{setBusy(join,true);showTransition("ルームに参加中","部屋の情報を確認しています");roomName=$("playerName").value.trim()||$("settingsName").value.trim()||"Player";const joined=await joinRoom(room.code,roomName,card._password?.value||"");$("transitionTitle").textContent="参加しました！";$("transitionDetail").textContent="ゲーム画面へ移動しています";await loadGame(joined.info.playerCount,joined.info.stageNo,joined);hideTransition();}catch(error){hideTransition();showError(error.message||"参加できませんでした");setBusy(join,false);}};
+  card.append(join);list.append(card);
+ });
+}
+async function refreshRooms(){
+ const button=$("refreshRooms");if(button)button.classList.add("is-loading");
+ try{renderRooms(await listRooms());}
+ catch(error){const list=$("roomList");list.innerHTML="";const box=document.createElement("div");box.className="room-empty";const title=document.createElement("b");title.textContent="ルーム一覧を取得できません";const detail=document.createElement("small");detail.textContent="Firebaseの公開ルーム一覧ルールを確認してください";box.append(title,detail);list.append(box);}
+ finally{if(button)button.classList.remove("is-loading");}
+}
+
 function showMenu(){ const menu=$("menu");menu.classList.remove("hide","is-leaving");$("transitionScreen").classList.remove("active"); } 
 function hideMenu(){const menu=$("menu");menu.classList.add("is-leaving");setTimeout(()=>menu.classList.add("hide"),360);}
 function showTransition(title,detail){$("transitionTitle").textContent=title;$("transitionDetail").textContent=detail;$("transitionScreen").classList.add("active");}
@@ -86,13 +120,23 @@ function draw(){
 function loop(){update();requestAnimationFrame(loop);}
 document.addEventListener("keydown",e=>{K[e.key]=true;if(["ArrowLeft","ArrowRight","ArrowUp"," "].includes(e.key))e.preventDefault();});
 document.addEventListener("keyup",e=>K[e.key]=false);
+document.querySelectorAll(".nav-tile").forEach(button=>button.onclick=()=>showMenuView(button.dataset.view));
+$("refreshRooms").onclick=refreshRooms;
+$("settingsName").onchange=()=>{$("playerName").value=$("settingsName").value.trim();};
+$("motionToggle").checked=localStorage.getItem("together-motion")!=="off";
+$("motionToggle").onchange=()=>{localStorage.setItem("together-motion",$("motionToggle").checked?"on":"off");document.body.classList.toggle("reduce-motion",!$("motionToggle").checked);};
+document.body.classList.toggle("reduce-motion",!$("motionToggle").checked);
+$("offlineCount").onchange=()=>{$("count").value=$("offlineCount").value;};
+$("offlineStage").onchange=()=>{$("stageNo").value=$("offlineStage").value;};
 $("createPasswordMode").onchange=()=>{const enabled=$("createPasswordMode").value==="password";$("createPassword").disabled=!enabled;if(!enabled)$("createPassword").value="";};
 $("create").onclick=async()=>{const button=$("create");try{setBusy(button,true);showError("");showTransition("ルームを作成中","オンライン環境を準備しています");const n=+$("count").value,s=+$("stageNo").value;roomName=$("playerName").value.trim()||"Player";const password=$("createPasswordMode").value==="password"?$("createPassword").value:"";if(password&&password.length<4)throw new Error("パスワードは4文字以上にしてください");if($("createPasswordMode").value==="password"&&!password)throw new Error("パスワードを入力してください");const room=await createRoom(n,s,roomName,password);$("transitionTitle").textContent="ルーム準備完了";$("transitionDetail").textContent="ゲーム画面へ移動しています";await loadGame(n,s,room);hideTransition();showError("");}catch(e){hideTransition();showError(e.message||"ルーム作成に失敗しました");}finally{setBusy(button,false);}};
 $("join").onclick=async()=>{const button=$("join");try{setBusy(button,true);showError("");showTransition("ルームに参加中","コードとパスワードを確認しています");roomName=$("playerName").value.trim()||"Player";const room=await joinRoom($("roomCode").value,roomName,$("joinPassword").value);$("transitionTitle").textContent="参加しました！";$("transitionDetail").textContent="メンバーとゲームを同期しています";await loadGame(room.info.playerCount,room.info.stageNo,room);hideTransition();showError("");}catch(e){hideTransition();showError(e.message||"参加できませんでした");}finally{setBusy(button,false);}};
-$("local").onclick=async()=>{const button=$("local");try{setBusy(button,true);showError("");showTransition("ゲームを準備中","ステージデータを読み込んでいます");await loadGame(+$("count").value,+$("stageNo").value);hideTransition();}catch(e){hideTransition();showError(e.message);}finally{setBusy(button,false);}};
+$("local").onclick=async()=>{const button=$("local");try{setBusy(button,true);showError("");roomName=$("playerName").value.trim()||$("settingsName").value.trim()||"Player";showTransition("ゲームを準備中","ステージデータを読み込んでいます");await loadGame(+$("offlineCount").value,+$("offlineStage").value);hideTransition();}catch(e){hideTransition();showError(e.message);}finally{setBusy(button,false);}};
 $("back").onclick=async()=>{running=false;if(online){await leaveRoom();online=false;myUid=null;mySlot=-1;}setStatus("未接続");showMenu();};
 $("swap").onclick=()=>{if(!online&&P.length){selected=(selected+1)%P.length;members();}};
 document.querySelectorAll("[data-k]").forEach(btn=>{const k=btn.dataset.k;btn.onpointerdown=e=>{e.preventDefault();T[k]=true;};btn.onpointerup=btn.onpointerleave=btn.onpointercancel=()=>T[k]=false;});
 $("chatForm").onsubmit=async e=>{e.preventDefault();const v=$("chatInput").value.trim();if(!v)return;if(!online){const p=document.createElement("p");p.className="msg";p.textContent="Player: "+v;$("chatlog").append(p);}else{try{await sendChat(roomName,v);}catch(err){showError("チャット送信に失敗しました");}}$("chatInput").value="";};
 refreshStageOptions();
+$("offlineStage").value=$("stageNo").value;
+showMenuView("online");
 draw();loop();
