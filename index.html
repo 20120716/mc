@@ -31,7 +31,7 @@ input:focus,select:focus{outline:none;border-color:#8eeaff;box-shadow:0 0 0 3px 
 <section class="panel hint">ステージデータ：<code>mnt/人数/s番号.json</code></section></aside></main>
 <div id="menu"><div class="dialog"><h2>TOGETHER</h2><p class="hint">オンライン協力プレイ。ルームを作るか、コードで参加しよう！</p>
 <label>プレイヤー名</label><input id="playerName" maxlength="16" placeholder="Player">
-<div class="row"><div><label>人数</label><select id="count"><option value="2">2人</option><option value="3">3人</option><option value="4">4人</option></select></div><div><label>ステージ</label><select id="stageNo"><option value="1">STAGE 01</option><option value="2">STAGE 02</option></select></div></div>
+<div class="row"><div><label>人数</label><select id="count"><option value="2">2人</option><option value="3">3人</option><option value="4">4人</option></select></div><div><label>ステージ</label><select id="stageNo"><option value="1">STAGE 01</option><option value="2" disabled>🔒 STAGE 02（STAGE 01クリアで解放）</option></select></div></div>
 <label>ルームのパスワード</label><div class="row"><select id="createPasswordMode"><option value="none">パスワードなし</option><option value="password">パスワードあり</option></select><input id="createPassword" type="password" maxlength="32" placeholder="4〜32文字" autocomplete="new-password" disabled></div>
 <button id="create" style="width:100%">オンラインルームを作成</button>
 <label>参加コード（6文字）</label><div class="row"><input id="roomCode" maxlength="6" placeholder="例：A2BC3D"><button id="join">参加</button></div><label>パスワード（設定されている場合）</label><input id="joinPassword" type="password" maxlength="32" placeholder="パスワード" autocomplete="current-password" style="width:100%">
