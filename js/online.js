@@ -26,13 +26,15 @@ function makeCode() {
 async function cleanupEmptyRoom(code) {
   if (!code) return;
   const roomRef = ref(db, `rooms/${code}`);
-  await runTransaction(roomRef, current => {
+  const result = await runTransaction(roomRef, current => {
     if (!current) return;
     const players = current.players || {};
     if (Object.keys(players).length !== 0) return;
     return null;
   }, {applyLocally:false});
-  try { await remove(ref(db, `publicRooms/${code}`)); } catch (error) { console.warn("public room cleanup failed", error); }
+  if (result.committed && !result.snapshot.exists()) {
+    try { await remove(ref(db, `publicRooms/${code}`)); } catch (error) { console.warn("public room cleanup failed", error); }
+  }
 }
 async function pruneStalePlayers(rows) {
   if (!roomCode) return;
@@ -136,7 +138,12 @@ export async function createRoom(playerCount, stageNo, name, password = "") {
   const credentials = await passwordRecord(password);
   const roomInfo = {hostUid:uid, playerCount:Number(playerCount), stageNo:Number(stageNo), createdAt:Date.now(), ...(credentials || {})};
   await set(ref(db,`rooms/${code}/info`), roomInfo);
-  await set(ref(db, `publicRooms/${code}`), {code,playerCount:Number(playerCount),playersNow:0,stageNo:Number(stageNo),hasPassword:!!password,createdAt:Date.now(),lastActivityAt:Date.now()});
+  try {
+    await set(ref(db, `publicRooms/${code}`), {code,playerCount:Number(playerCount),playersNow:0,stageNo:Number(stageNo),hasPassword:!!password,createdAt:Date.now(),lastActivityAt:Date.now()});
+  } catch (error) {
+    try { await remove(ref(db, `rooms/${code}`)); } catch {}
+    throw new Error("公開ルーム一覧への登録に失敗しました。Firebaseルールに publicRooms の読み書き権限を追加してください");
+  }
   return reserveSlot(code,name,roomInfo);
 }
 export async function listRooms() {
