@@ -28,7 +28,7 @@ async function loadGame(n,s,room=null){\n if(!room&&s>unlockedStage())throw new 
  const response=await fetch(`mnt/${n}/s${s}.json`);
  if(!response.ok)throw new Error("ステージデータを読み込めません");
  L=await response.json();P=L.spawns.map(([x,y],i)=>({x,y,vx:0,vy:0,w:28,h:42,done:false,ground:false,active:!room||i===room.slot,name:"P"+(i+1)}));
- online=!!room;mySlot=room?room.slot:-1;myUid=room?.uid||null;selected=online?mySlot:0;won=false;gateOpen=false;running=true;$("main")?.classList.add("game-enter");requestAnimationFrame(()=>setTimeout(()=>$("main")?.classList.remove("game-enter"),800));
+ online=!!room;mySlot=room?room.slot:-1;myUid=room?.uid||null;selected=online?mySlot:0;won=false;gateOpen=false;running=true;document.querySelector("main")?.classList.add("game-enter");requestAnimationFrame(()=>setTimeout(()=>document.querySelector("main")?.classList.remove("game-enter"),800));
  hideMenu();$("stage").textContent=n+" PLAYERS · STAGE "+String(s).padStart(2,"0");
  $("goal").textContent=online?"ルームコード "+room.roomCode+" · 協力して出口へ！":"全員で出口へ！";
  if(online){
