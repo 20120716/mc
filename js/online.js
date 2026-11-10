@@ -165,14 +165,12 @@ export async function listRooms() {
         const beat = Number(player.heartbeatAt || player.updatedAt || 0);
         return beat > 0 && now - beat <= STALE_AFTER_MS;
       });
+      const stalePlayers = Object.keys(players).filter(playerUid => !livePlayers.some(([liveUid]) => liveUid === playerUid));
+      await Promise.all(stalePlayers.map(playerUid => remove(ref(db, `rooms/${room.code}/players/${playerUid}`))));
       if (!infoSnap.exists() || livePlayers.length === 0) {
         await cleanupEmptyRoom(room.code);
         await remove(ref(db, `publicRooms/${room.code}`));
         return null;
-      }
-      if (livePlayers.length !== Object.keys(players).length) {
-        const live = Object.fromEntries(livePlayers);
-        await set(ref(db, `rooms/${room.code}/players`), live);
       }
       const lastActivityAt = Number(room.lastActivityAt || room.createdAt || 0);
       if (now - lastActivityAt >= 45000) {
