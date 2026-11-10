@@ -212,6 +212,52 @@ async function reserveSlot(code, name, roomInfo) {
   return { roomCode, slot, info, uid };
 }
 
+
+export async function listRooms() {
+  await ready();
+  const directorySnapshot = await get(ref(db, "publicRooms"));
+  const directory = directorySnapshot.val() || {};
+  const rooms = [];
+
+  for (const [code, summary] of Object.entries(directory)) {
+    if (!/^[A-HJ-NP-Z2-9]{6}$/.test(code)) continue;
+    try {
+      const roomSnapshot = await get(ref(db, `rooms/${code}`));
+      if (!roomSnapshot.exists()) {
+        await remove(ref(db, `publicRooms/${code}`)).catch(() => {});
+        continue;
+      }
+
+      const room = roomSnapshot.val() || {};
+      const roomInfo = room.info || {};
+      if (!roomInfo.hostUid || !Number.isInteger(Number(roomInfo.playerCount))) {
+        continue;
+      }
+
+      const players = room.players || {};
+      const playersNow = Object.keys(players).length;
+      rooms.push({
+        code,
+        playerCount: Number(roomInfo.playerCount),
+        stageNo: Number(roomInfo.stageNo) || 1,
+        playersNow,
+        hasPassword: !!roomInfo.passwordHash,
+        createdAt: Number(roomInfo.createdAt) || 0
+      });
+
+      if (Number(summary.playersNow) !== playersNow) {
+        update(ref(db, `publicRooms/${code}`), { playersNow }).catch(() => {});
+      }
+    } catch (error) {
+      console.warn("TOGETHER room list:", code, error);
+    }
+  }
+
+  return rooms
+    .filter(room => room.playersNow < room.playerCount)
+    .sort((a, b) => b.createdAt - a.createdAt);
+}
+
 export async function createRoom(playerCount, stageNo, name) {
   await ready();
 
@@ -242,7 +288,17 @@ export async function createRoom(playerCount, stageNo, name) {
 
   await set(ref(db, `rooms/${code}/info`), roomInfo);
   try {
-    return await reserveSlot(code, name, roomInfo);
+    const joined = await reserveSlot(code, name, roomInfo);
+    // The public directory is only a listing index; room creation itself must
+    // not be rolled back if directory metadata temporarily fails.
+    await set(ref(db, `publicRooms/${code}`), {
+      playerCount: Number(playerCount),
+      stageNo: Number(stageNo),
+      playersNow: 1,
+      hasPassword: false,
+      createdAt: serverTimestamp()
+    }).catch(error => console.warn("TOGETHER public room publish:", error));
+    return joined;
   } catch (error) {
     await deleteRoomIfEmpty(code).catch(() => {});
     throw error;
