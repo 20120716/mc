@@ -15,13 +15,13 @@ The game uses Firebase Authentication (anonymous sign-in) and Realtime Database.
 2. Replace the rules with the contents of `database.rules.json`.
 3. Click **Publish**.
 
-The rules allow authenticated users to read room/player/chat data. Each player can write their own record. Another authenticated room client may delete a player record only when its server-side heartbeat is older than 12 seconds. An empty room may be deleted by a signed-in client using a transaction, but only when the room has no player records.
+The rules allow authenticated users to read room/player/chat data. Each player can write their own record. Another authenticated room client may delete a player record only when its server-side heartbeat is older than 15 seconds. An empty room may be deleted by a signed-in client using a transaction, but only when the room has no player records.
 
 ## 3. How the heartbeat watchdog works
 
 - Each active client updates its own `heartbeatAt` once per second using Firebase's server timestamp.
 - Every client checks the room about every 3 seconds.
-- A player whose heartbeat has not changed for 12 seconds is treated as disconnected and removed.
+- A player whose heartbeat has not changed for 15 seconds is treated as disconnected and removed.
 - When a room becomes empty while a client is still running (for example, the last player uses the in-game Back button), that client deletes the room with a Realtime Database transaction.
 - If every browser/device disappears at once, no JavaScript remains to run the final delete. The next client that tries to join the old room checks for stale players and removes the expired room. This last edge case cannot be made instant with client-only code; an always-running server process would be required for that.
 
@@ -38,4 +38,4 @@ Serve the repository over HTTPS (GitHub Pages is suitable). ES modules and Fireb
 - Joining players receive the next free player slot.
 - Player positions and completion state are synchronized through Realtime Database.
 - Chat is shared by everyone in the room.
-- Heartbeat timeout is 12 seconds; the watchdog checks every 3 seconds.
+- Heartbeat timeout is 15 seconds; the watchdog checks every 3 seconds.
