@@ -237,7 +237,7 @@ export async function createRoom(playerCount, stageNo, name) {
     hostUid: uid,
     playerCount: Number(playerCount),
     stageNo: Number(stageNo),
-    createdAt: Date.now()
+    createdAt: serverTimestamp()
   };
 
   await set(ref(db, `rooms/${code}/info`), roomInfo);
