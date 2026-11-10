@@ -4,7 +4,7 @@ const colors=["#4ed8ff","#ffae58","#b89cff","#83e28c"],maps=[{l:"a",r:"d",j:"w"}
 let L=null,P=[],K={},T={left:false,right:false,jump:false},selected=0,gateOpen=false,won=false,running=false,online=false,mySlot=-1,myUid=null,roomName="Player",lastSync=0,currentStage=1;
 function showError(msg){$("error").textContent=msg||""}
 
-let activeMenuView="online";
+let activeMenuView="online",roomRefreshBusy=false;
 function showMenuView(view){
  activeMenuView=view;
  document.querySelectorAll(".nav-tile").forEach(button=>button.classList.toggle("active",button.dataset.view===view));
@@ -31,10 +31,12 @@ function renderRooms(rooms){
  });
 }
 async function refreshRooms(){
+ if(roomRefreshBusy)return;
+ roomRefreshBusy=true;
  const button=$("refreshRooms");if(button)button.classList.add("is-loading");
  try{renderRooms(await listRooms());}
- catch(error){const list=$("roomList");list.innerHTML="";const box=document.createElement("div");box.className="room-empty";const title=document.createElement("b");title.textContent="ルーム一覧を取得できません";const detail=document.createElement("small");detail.textContent="Firebaseの公開ルーム一覧ルールを確認してください";box.append(title,detail);list.append(box);}
- finally{if(button)button.classList.remove("is-loading");}
+ catch(error){const list=$("roomList");list.replaceChildren();const box=document.createElement("div");box.className="room-empty";const title=document.createElement("b");title.textContent="ルーム一覧を取得できません";const detail=document.createElement("small");detail.textContent="Firebaseの公開ルーム一覧ルールを確認してください";box.append(title,detail);list.append(box);}
+ finally{if(button)button.classList.remove("is-loading");roomRefreshBusy=false;}
 }
 
 function showMenu(){ const menu=$("menu");menu.classList.remove("hide","is-leaving");$("transitionScreen").classList.remove("active"); } 
@@ -142,4 +144,5 @@ $("chatForm").onsubmit=async e=>{e.preventDefault();const v=$("chatInput").value
 refreshStageOptions();
 $("offlineStage").value=$("stageNo").value;
 showMenuView("online");
+setInterval(()=>{if(activeMenuView==="online"&&!$("menu").classList.contains("hide"))refreshRooms();},5000);
 draw();loop();
