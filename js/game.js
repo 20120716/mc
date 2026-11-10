@@ -137,7 +137,7 @@ function update(){
   if(online&&i===mySlot&&now-lastSync>70){lastSync=now;updateMyPlayer({x:Math.round(p.x),y:Math.round(p.y),done:p.done}).catch(()=>{});}
  });
  const active=P.filter(p=>p.active);
- if(active.length===P.length&&active.length>0&&active.every(p=>p.done)){won=true;unlockAfterClear(currentStage);$("goal").textContent=currentStage<10?"STAGE CLEAR！ 次のステージ解放！":"全10ステージ制覇！おめでとう！";}
+ if(active.length===P.length&&active.length>0&&active.every(p=>p.done)){won=true;unlockAfterClear(currentStage);$("goal").textContent=currentStage<10?"STAGE CLEAR！ STAGE "+String(currentStage+1).padStart(2,"0")+" 解放！":"全10ステージ制覇！おめでとう！";}
 }
 function draw(){
  const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,"#8bd2e2");sky.addColorStop(1,"#d9f0dc");ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
