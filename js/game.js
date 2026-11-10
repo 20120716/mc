@@ -1,11 +1,26 @@
 import { createRoom, joinRoom, watchPlayers, watchChat, updateMyPlayer, sendChat, leaveRoom } from "./online.js";
 const $=id=>document.getElementById(id),canvas=$("game"),ctx=canvas.getContext("2d"),W=960,H=540;
 const colors=["#4ed8ff","#ffae58","#b89cff","#83e28c"],maps=[{l:"a",r:"d",j:"w"},{l:"ArrowLeft",r:"ArrowRight",j:"ArrowUp"},{l:"j",r:"l",j:"i"},{l:"4",r:"6",j:"8"}];
-let L=null,P=[],K={},T={left:false,right:false,jump:false},selected=0,gateOpen=false,won=false,running=false,online=false,mySlot=-1,myUid=null,roomName="Player",lastSync=0;
+let L=null,P=[],K={},T={left:false,right:false,jump:false},selected=0,gateOpen=false,won=false,running=false,online=false,mySlot=-1,myUid=null,roomName="Player",lastSync=0,currentStage=1;
 function showError(msg){$("error").textContent=msg||""}
 function showMenu(){ $("menu").classList.remove("hide"); }
 function setStatus(s){$("status").textContent=s}
-async function loadGame(n,s,room=null){
+function unlockedStage(){return Math.max(1,Math.min(2,Number(localStorage.getItem("together-unlocked-stage")||1)));}
+function refreshStageOptions(){
+ const unlocked=unlockedStage(),select=$("stageNo"),stage2=select.querySelector('option[value="2"]');
+ stage2.disabled=unlocked<2;
+ stage2.textContent=unlocked>=2?"STAGE 02":"🔒 STAGE 02（STAGE 01クリアで解放）";
+ if(Number(select.value)>unlocked)select.value="1";
+}
+function unlockAfterClear(stage){
+ const next=Math.min(2,stage+1);
+ if(next>unlockedStage()){
+  localStorage.setItem("together-unlocked-stage",String(next));
+  refreshStageOptions();
+  $("goal").textContent="STAGE CLEAR！ STAGE 02 解放！";
+ }
+}
+async function loadGame(n,s,room=null){\n if(!room&&s>unlockedStage())throw new Error("このステージは未解放です。前のステージをクリアしてください");\n currentStage=s;
  const response=await fetch(`mnt/${n}/s${s}.json`);
  if(!response.ok)throw new Error("ステージデータを読み込めません");
  L=await response.json();P=L.spawns.map(([x,y],i)=>({x,y,vx:0,vy:0,w:28,h:42,done:false,ground:false,active:!room||i===room.slot,name:"P"+(i+1)}));
@@ -48,7 +63,7 @@ function update(){
   if(online&&i===mySlot&&now-lastSync>70){lastSync=now;updateMyPlayer({x:Math.round(p.x),y:Math.round(p.y),done:p.done}).catch(()=>{});}
  });
  const active=P.filter(p=>p.active);
- if(active.length===P.length&&active.length>0&&active.every(p=>p.done)){won=true;$("goal").textContent="全員クリア！";}
+ if(active.length===P.length&&active.length>0&&active.every(p=>p.done)){won=true;unlockAfterClear(currentStage);if(currentStage>=unlockedStage())$("goal").textContent="全員クリア！";}
 }
 function draw(){
  const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,"#8bd2e2");sky.addColorStop(1,"#d9f0dc");ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
@@ -73,4 +88,4 @@ $("back").onclick=async()=>{running=false;if(online){await leaveRoom();online=fa
 $("swap").onclick=()=>{if(!online&&P.length){selected=(selected+1)%P.length;members();}};
 document.querySelectorAll("[data-k]").forEach(btn=>{const k=btn.dataset.k;btn.onpointerdown=e=>{e.preventDefault();T[k]=true;};btn.onpointerup=btn.onpointerleave=btn.onpointercancel=()=>T[k]=false;});
 $("chatForm").onsubmit=async e=>{e.preventDefault();const v=$("chatInput").value.trim();if(!v)return;if(!online){const p=document.createElement("p");p.className="msg";p.textContent="Player: "+v;$("chatlog").append(p);}else{try{await sendChat(roomName,v);}catch(err){showError("チャット送信に失敗しました");}}$("chatInput").value="";};
-draw();loop();
+refreshStageOptions();\ndraw();loop();
