@@ -4,7 +4,7 @@ const colors=["#4ed8ff","#ffae58","#b89cff","#83e28c"],maps=[{l:"a",r:"d",j:"w"}
 let L=null,P=[],K={},T={left:false,right:false,jump:false},selected=0,gateOpen=false,won=false,running=false,online=false,mySlot=-1,myUid=null,roomName="Player",lastSync=0,currentStage=1;
 function showError(msg){$("error").textContent=msg||""}
 function requireOnlineName(){
- const name=String($("playerName").value||$("settingsName").value||"").trim().slice(0,16);
+ const name=String($("playerName").value||"").trim().slice(0,16);
  if(!name){
   showError("⚠ プレイヤー名が未入力です。名前を入力してからオンラインに参加してください。");
   $("playerName").setCustomValidity("プレイヤー名を入力してください");
