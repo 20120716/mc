@@ -21,7 +21,7 @@ let activeMenuView="online",roomRefreshBusy=false;
 function updateOnlineNameButtons(){
  const hasName=String($("playerName").value||"").trim().length>0;
  const create=$("create");
- if(create)create.disabled=create.classList.contains("is-loading")||!hasName;
+ if(create)create.disabled=create.classList.contains("is-loading");
  document.querySelectorAll(".room-join").forEach(button=>{
   button.disabled=button.classList.contains("is-loading")||button.dataset.roomFull==="true"||!hasName;
   button.title=!hasName?"先にプレイヤー名を入力してください":"";
