@@ -102,6 +102,8 @@ async function passwordMatches(password, roomInfo) {
   return hash === roomInfo.passwordHash;
 }
 async function reserveSlot(code, name, roomInfo) {
+  name = String(name || "").trim().slice(0,16);
+  if (!name) throw new Error("オンラインで遊ぶにはプレイヤー名を入力してください");
   const pRef = ref(db, `rooms/${code}/players`);
   const snap = await get(pRef);
   const current = snap.val() || {};
