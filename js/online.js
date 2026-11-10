@@ -32,6 +32,7 @@ async function cleanupEmptyRoom(code) {
     if (Object.keys(players).length !== 0) return;
     return null;
   }, {applyLocally:false});
+  try { await remove(ref(db, `publicRooms/${code}`)); } catch (error) { console.warn("public room cleanup failed", error); }
 }
 async function pruneStalePlayers(rows) {
   if (!roomCode) return;
@@ -45,12 +46,16 @@ async function pruneStalePlayers(rows) {
     }
   }));
   const latest = await get(playersRef);
-  if (!latest.exists() || Object.keys(latest.val() || {}).length === 0) {
+  const latestRows = latest.val() || {};
+  if (!latest.exists() || Object.keys(latestRows).length === 0) {
     try { await cleanupEmptyRoom(roomCode); } catch (error) { console.warn("empty room cleanup failed", error); }
+  } else {
+    try { await update(ref(db, `publicRooms/${roomCode}`), {playersNow:Object.keys(latestRows).length, lastActivityAt:Date.now()}); } catch (error) { console.warn("room directory update failed", error); }
   }
 }
 function startHeartbeat() {
   stopHeartbeat();
+  let lastDirectoryBeat = 0;
   const beat = async () => {
     if (!roomCode || !uid) return;
     const now = Date.now();
@@ -58,6 +63,7 @@ function startHeartbeat() {
     lastHeartbeatWrite = now;
     try {
       await update(ref(db, `rooms/${roomCode}/players/${uid}`), {heartbeatAt: now});
+      if (now - lastDirectoryBeat > 10000) { lastDirectoryBeat = now; await update(ref(db, `publicRooms/${roomCode}`), {lastActivityAt:now}); }
     } catch (error) {
       console.warn("heartbeat update failed", error);
     }
@@ -112,6 +118,7 @@ async function reserveSlot(code, name, roomInfo) {
   await onDisconnect(ref(db,`rooms/${code}/players/${uid}`)).remove();
   roomCode = code; info = roomInfo;
   playersRef = pRef; chatRef = ref(db,`rooms/${code}/chat`);
+  await update(ref(db, `publicRooms/${code}`), {playersNow:Object.keys((await get(pRef)).val() || {}).length,lastActivityAt:Date.now()});
   lastHeartbeatWrite = 0;
   startHeartbeat();
   return {roomCode, slot, info, uid};
@@ -129,7 +136,14 @@ export async function createRoom(playerCount, stageNo, name, password = "") {
   const credentials = await passwordRecord(password);
   const roomInfo = {hostUid:uid, playerCount:Number(playerCount), stageNo:Number(stageNo), createdAt:Date.now(), ...(credentials || {})};
   await set(ref(db,`rooms/${code}/info`), roomInfo);
+  await set(ref(db, `publicRooms/${code}`), {code,playerCount:Number(playerCount),playersNow:0,stageNo:Number(stageNo),hasPassword:!!password,createdAt:Date.now(),lastActivityAt:Date.now()});
   return reserveSlot(code,name,roomInfo);
+}
+export async function listRooms() {
+  await ready();
+  const snap = await get(ref(db, "publicRooms"));
+  const now = Date.now();
+  return Object.values(snap.val() || {}).filter(room => room && room.code && now - Number(room.lastActivityAt || room.createdAt || 0) < 45000).sort((a,b)=>Number(b.lastActivityAt||b.createdAt)-Number(a.lastActivityAt||a.createdAt));
 }
 export async function joinRoom(codeInput, name, password = "") {
   await ready();
@@ -188,7 +202,10 @@ export async function leaveRoom() {
   const code = roomCode;
   if(code && uid) {
     await remove(ref(db,`rooms/${code}/players/${uid}`));
-    await cleanupEmptyRoom(code);
+    const remaining = await get(ref(db, `rooms/${code}/players`));
+    const rows = remaining.val() || {};
+    if (!Object.keys(rows).length) await cleanupEmptyRoom(code);
+    else await update(ref(db, `publicRooms/${code}`), {playersNow:Object.keys(rows).length,lastActivityAt:Date.now()});
   }
   roomCode=null; slot=-1; info=null; playersRef=null; chatRef=null;
 }
