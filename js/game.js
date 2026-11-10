@@ -65,8 +65,9 @@ function draw(){
 function loop(){update();requestAnimationFrame(loop);}
 document.addEventListener("keydown",e=>{K[e.key]=true;if(["ArrowLeft","ArrowRight","ArrowUp"," "].includes(e.key))e.preventDefault();});
 document.addEventListener("keyup",e=>K[e.key]=false);
-$("create").onclick=async()=>{try{showError("接続中...");const n=+$("count").value,s=+$("stageNo").value;roomName=$("playerName").value.trim()||"Player";const room=await createRoom(n,s,roomName);await loadGame(n,s,room);showError("");}catch(e){showError(e.message||"ルーム作成に失敗しました");}};
-$("join").onclick=async()=>{try{showError("接続中...");roomName=$("playerName").value.trim()||"Player";const room=await joinRoom($("roomCode").value,roomName);await loadGame(room.info.playerCount,room.info.stageNo,room);showError("");}catch(e){showError(e.message||"参加できませんでした");}};
+$("createPasswordMode").onchange=()=>{const enabled=$("createPasswordMode").value==="password";$("createPassword").disabled=!enabled;if(!enabled)$("createPassword").value="";};
+$("create").onclick=async()=>{try{showError("接続中...");const n=+$("count").value,s=+$("stageNo").value;roomName=$("playerName").value.trim()||"Player";const password=$("createPasswordMode").value==="password"?$("createPassword").value:"";if(password&&password.length<4)throw new Error("パスワードは4文字以上にしてください");if($("createPasswordMode").value==="password"&&!password)throw new Error("パスワードを入力してください");const room=await createRoom(n,s,roomName,password);await loadGame(n,s,room);showError("");}catch(e){showError(e.message||"ルーム作成に失敗しました");}};
+$("join").onclick=async()=>{try{showError("接続中...");roomName=$("playerName").value.trim()||"Player";const room=await joinRoom($("roomCode").value,roomName,$("joinPassword").value);await loadGame(room.info.playerCount,room.info.stageNo,room);showError("");}catch(e){showError(e.message||"参加できませんでした");}};
 $("local").onclick=async()=>{try{showError("");await loadGame(+$("count").value,+$("stageNo").value); }catch(e){showError(e.message);}};
 $("back").onclick=async()=>{running=false;if(online){await leaveRoom();online=false;myUid=null;mySlot=-1;}setStatus("未接続");showMenu();};
 $("swap").onclick=()=>{if(!online&&P.length){selected=(selected+1)%P.length;members();}};
