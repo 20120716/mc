@@ -1,0 +1,24 @@
+{
+  "rules": {
+    "rooms": {
+      "$roomCode": {
+        "info": {
+          ".read": "auth != null",
+          ".write": "auth != null && ((!data.exists() && newData.child('hostUid').val() === auth.uid) || (data.child('hostUid').val() === auth.uid && newData.child('hostUid').val() === auth.uid))"
+        },
+        "players": {
+          "$uid": {
+            ".read": "auth != null",
+            ".write": "auth != null && auth.uid === $uid"
+          }
+        },
+        "chat": {
+          "$messageId": {
+            ".read": "auth != null",
+            ".write": "auth != null && newData.hasChildren(['uid', 'name', 'text', 'createdAt']) && newData.child('uid').val() === auth.uid && newData.child('text').isString() && newData.child('text').val().length <= 160"
+          }
+        }
+      }
+    }
+  }
+}
