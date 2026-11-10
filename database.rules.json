@@ -2,6 +2,7 @@
   "rules": {
     "rooms": {
       "$roomCode": {
+        ".write": "auth != null && !newData.exists() && !data.child('players').exists()",
         "info": {
           ".read": "auth != null",
           ".write": "auth != null && ((!data.exists() && newData.child('hostUid').val() === auth.uid) || (data.child('hostUid').val() === auth.uid && newData.child('hostUid').val() === auth.uid))"
@@ -9,7 +10,7 @@
         "players": {
           ".read": "auth != null",
           "$uid": {
-            ".write": "auth != null && auth.uid === $uid"
+            ".write": "auth != null && (auth.uid === $uid || (!newData.exists() && data.child('heartbeatAt').val() < now - 15000))"
           }
         },
         "chat": {
