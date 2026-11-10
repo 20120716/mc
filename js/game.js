@@ -126,7 +126,7 @@ function update(){
   if(online&&i!==mySlot)return;
   const m=maps[i],left=!!K[m.l],right=!!K[m.r],jump=!!K[m.j];
   if(!online&&i===selected){if(T.left){} }
-  const l=left||(!online&&i===selected&&T.left),r=right||(!online&&i===selected&&T.right),j=jump||(!online&&i===selected&&T.jump);
+  const localControl=online?i===mySlot:i===selected;const l=left||(localControl&&T.left),r=right||(localControl&&T.right),j=jump||(localControl&&T.jump);
   const oldX=p.x,oldY=p.y;p.x=Math.max(0,Math.min(W-p.w,p.x+(r?3.5:0)-(l?3.5:0)));
   p.vy=Math.min(14,p.vy+.62);p.y+=p.vy;p.ground=false;
   L.platforms.forEach(q=>{if(p.x+p.w>q.x&&p.x<q.x+q.w&&oldY+p.h<=q.y&&p.y+p.h>=q.y&&p.vy>=0){p.y=q.y-p.h;p.vy=0;p.ground=true;}});
