@@ -158,7 +158,7 @@ body.reduce-motion *,body.reduce-motion *:before,body.reduce-motion *:after{anim
     <div id="roomList" class="room-list"><div class="room-empty"><span class="room-empty-icon">⌁</span><b>ルームを読み込みます</b><small>オンラインを開いて一覧を更新してください</small></div></div>
     <div class="create-room-box">
      <div class="section-caption"><span>＋</span> CREATE NEW ROOM</div>
-     <label for="playerName">プレイヤー名</label><input id="playerName" maxlength="16" placeholder="Player" autocomplete="nickname">
+     <label for="playerName">プレイヤー名</label><input id="playerName" maxlength="16" placeholder="プレイヤー名を入力" required autocomplete="nickname">
      <div class="row menu-selects"><div><label for="count">人数</label><select id="count"><option value="2">2人</option><option value="3">3人</option><option value="4">4人</option></select></div><div><label for="stageNo">ステージ</label><select id="stageNo"><option value="1">STAGE 01</option><option value="2" disabled>🔒 STAGE 02（STAGE 01クリアで解放）</option></select></div></div>
      <label for="createPasswordMode">ルームのパスワード</label>
      <div class="row"><select id="createPasswordMode"><option value="none">パスワードなし</option><option value="password">🔒 パスワードあり</option></select><input id="createPassword" type="password" maxlength="32" placeholder="4〜32文字" autocomplete="new-password" disabled></div>
@@ -174,7 +174,7 @@ body.reduce-motion *,body.reduce-motion *:before,body.reduce-motion *:after{anim
    </div>
    <div class="view-panel" data-panel="settings">
     <div class="menu-heading"><div><p class="eyebrow">PREFERENCES</p><h2>設定</h2></div><span class="mode-pill">SETTINGS</span></div>
-    <label for="settingsName">プレイヤー名</label><input id="settingsName" maxlength="16" placeholder="Player" autocomplete="nickname">
+    <label for="settingsName">プレイヤー名</label><input id="settingsName" maxlength="16" placeholder="プレイヤー名を入力" autocomplete="nickname">
     <label class="setting-row"><span><b>モーション効果</b><small>画面切り替えやアニメーションを有効にする</small></span><input id="motionToggle" type="checkbox" checked></label>
     <p class="security-note">設定はこのブラウザに保存されます。</p>
    </div>
