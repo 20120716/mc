@@ -3,6 +3,19 @@ const $=id=>document.getElementById(id),canvas=$("game"),ctx=canvas.getContext("
 const colors=["#4ed8ff","#ffae58","#b89cff","#83e28c"],maps=[{l:"a",r:"d",j:"w"},{l:"ArrowLeft",r:"ArrowRight",j:"ArrowUp"},{l:"j",r:"l",j:"i"},{l:"4",r:"6",j:"8"}];
 let L=null,P=[],K={},T={left:false,right:false,jump:false},selected=0,gateOpen=false,won=false,running=false,online=false,mySlot=-1,myUid=null,roomName="Player",lastSync=0,currentStage=1;
 function showError(msg){$("error").textContent=msg||""}
+function requireOnlineName(){
+ const name=String($("playerName").value||$("settingsName").value||"").trim().slice(0,16);
+ if(!name){
+  showError("⚠ プレイヤー名が未入力です。名前を入力してからオンラインに参加してください。");
+  $("playerName").setCustomValidity("プレイヤー名を入力してください");
+  $("playerName").focus();
+  $("playerName").reportValidity();
+  return "";
+ }
+ $("playerName").setCustomValidity("");
+ showError("");
+ return name;
+}
 
 let activeMenuView="online",roomRefreshBusy=false;
 function showMenuView(view){
@@ -26,7 +39,7 @@ function renderRooms(rooms){
   main.append(title,meta);card.append(main);
   if(room.hasPassword){const pass=document.createElement("input");pass.className="room-password";pass.type="password";pass.placeholder="パスワード";pass.maxLength=32;pass.autocomplete="current-password";card.append(pass);card._password=pass;}
   const join=document.createElement("button");join.className="room-join";join.textContent="参加 →";join.disabled=Number(room.playersNow)>=Number(room.playerCount);
-  join.onclick=async()=>{try{roomName=$("playerName").value.trim();if(!roomName){$("playerName").focus();throw new Error("オンラインで遊ぶにはプレイヤー名を入力してください");}setBusy(join,true);showError("");showTransition("ルームに参加中","部屋の情報を確認しています");const joined=await joinRoom(room.code,roomName,card._password?.value||"");await loadGame(joined.info.playerCount,joined.info.stageNo,joined);hideTransition();}catch(error){hideTransition();showError(error.message||"参加できませんでした");setBusy(join,false);}};
+  join.onclick=async()=>{roomName=requireOnlineName();if(!roomName)return;try{setBusy(join,true);showError("");showTransition("ルームに参加中","部屋の情報を確認しています");const joined=await joinRoom(room.code,roomName,card._password?.value||"");await loadGame(joined.info.playerCount,joined.info.stageNo,joined);hideTransition();}catch(error){hideTransition();showError(error.message||"参加できませんでした");setBusy(join,false);}};
   card.append(join);list.append(card);
  });
 }
@@ -126,15 +139,15 @@ document.addEventListener("keydown",e=>{K[e.key]=true;if(["ArrowLeft","ArrowRigh
 document.addEventListener("keyup",e=>K[e.key]=false);
 document.querySelectorAll(".nav-tile").forEach(button=>button.onclick=()=>showMenuView(button.dataset.view));
 $("refreshRooms").onclick=refreshRooms;
-$("settingsName").oninput=()=>{$("playerName").value=$("settingsName").value.slice(0,16);};
-$("playerName").oninput=()=>{$("settingsName").value=$("playerName").value.slice(0,16);};
+$("settingsName").oninput=()=>{$("playerName").value=$("settingsName").value.slice(0,16);$("playerName").setCustomValidity("");showError("");};
+$("playerName").oninput=()=>{$("settingsName").value=$("playerName").value.slice(0,16);$("playerName").setCustomValidity("");showError("");};
 $("motionToggle").checked=localStorage.getItem("together-motion")!=="off";
 $("motionToggle").onchange=()=>{localStorage.setItem("together-motion",$("motionToggle").checked?"on":"off");document.body.classList.toggle("reduce-motion",!$("motionToggle").checked);};
 document.body.classList.toggle("reduce-motion",!$("motionToggle").checked);
 $("offlineCount").onchange=()=>{$("count").value=$("offlineCount").value;};
 $("offlineStage").onchange=()=>{$("stageNo").value=$("offlineStage").value;};
 $("createPasswordMode").onchange=()=>{const enabled=$("createPasswordMode").value==="password";$("createPassword").disabled=!enabled;if(!enabled)$("createPassword").value="";};
-$("create").onclick=async()=>{const button=$("create");try{roomName=$("playerName").value.trim();if(!roomName){$("playerName").focus();throw new Error("オンラインで遊ぶにはプレイヤー名を入力してください");}setBusy(button,true);showError("");showTransition("ルームを作成中","オンライン環境を準備しています");const n=+$("count").value,s=+$("stageNo").value;const password=$("createPasswordMode").value==="password"?$("createPassword").value:"";if(password&&password.length<4)throw new Error("パスワードは4文字以上にしてください");if($("createPasswordMode").value==="password"&&!password)throw new Error("パスワードを入力してください");const room=await createRoom(n,s,roomName,password);await loadGame(n,s,room);hideTransition();showError("");}catch(e){hideTransition();showError(e.message||"ルーム作成に失敗しました");}finally{setBusy(button,false);}};
+$("create").onclick=async()=>{const button=$("create");roomName=requireOnlineName();if(!roomName)return;try{setBusy(button,true);showError("");showTransition("ルームを作成中","オンライン環境を準備しています");const n=+$("count").value,s=+$("stageNo").value;const password=$("createPasswordMode").value==="password"?$("createPassword").value:"";if(password&&password.length<4)throw new Error("パスワードは4文字以上にしてください");if($("createPasswordMode").value==="password"&&!password)throw new Error("パスワードを入力してください");const room=await createRoom(n,s,roomName,password);await loadGame(n,s,room);hideTransition();showError("");}catch(e){hideTransition();showError(e.message||"ルーム作成に失敗しました");}finally{setBusy(button,false);}};
 
 $("local").onclick=async()=>{const button=$("local");try{setBusy(button,true);showError("");roomName=$("playerName").value.trim()||$("settingsName").value.trim()||"Player";showTransition("ゲームを準備中","ステージデータを読み込んでいます");await loadGame(+$("offlineCount").value,+$("offlineStage").value);hideTransition();}catch(e){hideTransition();showError(e.message);}finally{setBusy(button,false);}};
 $("back").onclick=async()=>{running=false;if(online){await leaveRoom();online=false;myUid=null;mySlot=-1;}setStatus("未接続");showMenu();};
