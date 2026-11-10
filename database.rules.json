@@ -11,7 +11,7 @@
         "players": {
           ".read": "auth != null",
           "$uid": {
-            ".write": "auth != null && (auth.uid === $uid || (!newData.exists() && data.child('heartbeatAt').val() < now - 15000))"
+            ".write": "auth != null && (auth.uid === $uid || (!newData.exists() && ((data.child('heartbeatAt').isNumber() && data.child('heartbeatAt').val() < now - 12000) || (!data.child('heartbeatAt').exists() && data.child('updatedAt').isNumber() && data.child('updatedAt').val() < now - 12000))))"
           }
         },
         "chat": {
