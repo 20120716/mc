@@ -1,5 +1,75 @@
-(()=>{const $=id=>document.getElementById(id),c=$('game'),g=c.getContext('2d'),W=960,H=540,colors=['#4ed8ff','#ffae58','#b89cff','#83e28c'],maps=[{l:'a',r:'d',j:'w'},{l:'ArrowLeft',r:'ArrowRight',j:'ArrowUp'},{l:'j',r:'l',j:'i'},{l:'4',r:'6',j:'8'}];let L,P=[],K={},T={left:false,right:false,jump:false},sel=0,open=false,win=false,run=false;
-async function start(){let n=+$('count').value,s=+$('stageNo').value;try{let r=await fetch('mnt/'+n+'/s'+s+'.json');if(!r.ok)throw 0;L=await r.json();P=L.spawns.map(([x,y])=>({x,y,vx:0,vy:0,w:28,h:42,done:false,ground:false}));sel=0;open=win=false;run=true;$('menu').classList.add('hide');$('stage').textContent=n+' PLAYERS · STAGE '+String(s).padStart(2,'0');$('goal').textContent='スイッチを踏んで全員で出口へ！';members()}catch(e){alert('ステージファイルを読み込めませんでした')}}function members(){$('members').innerHTML=P.map((p,i)=>['🔵','🟠','🟣','🟢'][i]+' P'+(i+1)+(i===sel?'（操作中）':'')).join('<br>')}
-function update(){if(!run||win)return;let s=L.switch,b=L.gate;open=P.some(p=>p.x+p.w>s.x&&p.x<s.x+s.w&&Math.abs(p.y+p.h-L.floorY)<4);P.forEach((p,i)=>{let m=maps[i],l=!!K[m.l],r=!!K[m.r],j=!!K[m.j];if(i===sel){l||=T.left;r||=T.right;j||=T.jump}let ox=p.x,oy=p.y;p.x=Math.max(0,Math.min(W-p.w,p.x+(r?3.5:0)-(l?3.5:0)));p.vy=Math.min(14,p.vy+.62);p.y+=p.vy;p.ground=false;L.platforms.forEach(q=>{if(p.x+p.w>q.x&&p.x<q.x+q.w&&oy+p.h<=q.y&&p.y+p.h>=q.y&&p.vy>=0){p.y=q.y-p.h;p.vy=0;p.ground=true}});if(j&&p.ground){p.vy=-12.2;p.ground=false}if(!open&&p.x+p.w>b.x&&p.x<b.x+b.w&&p.y+p.h>b.y&&p.y<b.y+b.h){if(ox+p.w<=b.x)p.x=b.x-p.w;else if(ox>=b.x+b.w)p.x=b.x+b.w;else p.x=ox}if(p.y>620){[p.x,p.y]=L.spawns[i];p.vy=0}let e=L.exit;if(p.x+p.w>e.x&&p.x<e.x+e.w&&p.y+p.h>e.y&&p.y<e.y+e.h)p.done=true});if(P.every(p=>p.done)){win=true;$('goal').textContent='全員クリア！'}}
-function draw(){let sky=g.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#8bd2e2');sky.addColorStop(1,'#d9f0dc');g.fillStyle=sky;g.fillRect(0,0,W,H);if(L){L.platforms.forEach(p=>{g.fillStyle='#526d70';g.fillRect(p.x,p.y,p.w,p.h);g.fillStyle='#a2d5a9';g.fillRect(p.x,p.y,p.w,7)});let s=L.switch;g.fillStyle=open?'#ffe17a':'#a65b50';g.fillRect(s.x,s.y,s.w,s.h);let b=L.gate;if(!open){g.fillStyle='#b54f58';g.fillRect(b.x,b.y,b.w,b.h)}else{g.strokeStyle='#6b9b8c';g.setLineDash([8,8]);g.strokeRect(b.x,b.y,b.w,b.h);g.setLineDash([])}let e=L.exit;g.fillStyle='#8af0bd';g.fillRect(e.x,e.y,e.w,e.h);P.forEach((p,i)=>{g.fillStyle=p.done?'#b7e8c9':colors[i];g.fillRect(p.x,p.y,p.w,p.h);g.fillStyle='#17364a';g.font='bold 13px system-ui';g.fillText('P'+(i+1),p.x+3,p.y-7)});if(win){g.fillStyle='#061522bb';g.fillRect(0,0,W,H);g.fillStyle='white';g.textAlign='center';g.font='bold 42px system-ui';g.fillText('TEAMWORK!',W/2,H/2);g.textAlign='left'}}requestAnimationFrame(draw)}function loop(){update();requestAnimationFrame(loop)}
-document.addEventListener('keydown',e=>{K[e.key]=true;if(['ArrowLeft','ArrowRight','ArrowUp',' '].includes(e.key))e.preventDefault()});document.addEventListener('keyup',e=>K[e.key]=false);$('start').onclick=start;$('back').onclick=()=>$('menu').classList.remove('hide');$('swap').onclick=()=>{if(P.length){sel=(sel+1)%P.length;members()}};document.querySelectorAll('[data-k]').forEach(b=>{let k=b.dataset.k;b.onpointerdown=e=>{e.preventDefault();T[k]=true};b.onpointerup=b.onpointerleave=b.onpointercancel=()=>T[k]=false});$('chatForm').onsubmit=e=>{e.preventDefault();let v=$('chatInput').value.trim();if(v){let p=document.createElement('p');p.className='msg';p.textContent='Player：'+v;$('chatlog').append(p);$('chatInput').value=''}};draw();loop()})();
+import { createRoom, joinRoom, watchPlayers, watchChat, updateMyPlayer, sendChat, leaveRoom } from "./online.js";
+const $=id=>document.getElementById(id),canvas=$("game"),ctx=canvas.getContext("2d"),W=960,H=540;
+const colors=["#4ed8ff","#ffae58","#b89cff","#83e28c"],maps=[{l:"a",r:"d",j:"w"},{l:"ArrowLeft",r:"ArrowRight",j:"ArrowUp"},{l:"j",r:"l",j:"i"},{l:"4",r:"6",j:"8"}];
+let L=null,P=[],K={},T={left:false,right:false,jump:false},selected=0,gateOpen=false,won=false,running=false,online=false,mySlot=-1,myUid=null,roomName="Player",lastSync=0;
+function showError(msg){$("error").textContent=msg||""}
+function showMenu(){ $("menu").classList.remove("hide"); }
+function setStatus(s){$("status").textContent=s}
+async function loadGame(n,s,room=null){
+ const response=await fetch(`mnt/${n}/s${s}.json`);
+ if(!response.ok)throw new Error("ステージデータを読み込めません");
+ L=await response.json();P=L.spawns.map(([x,y],i)=>({x,y,vx:0,vy:0,w:28,h:42,done:false,ground:false,active:!room||i===room.slot,name:"P"+(i+1)}));
+ online=!!room;mySlot=room?room.slot:-1;myUid=room?.uid||null;selected=online?mySlot:0;won=false;gateOpen=false;running=true;
+ $("menu").classList.add("hide");$("stage").textContent=n+" PLAYERS · STAGE "+String(s).padStart(2,"0");
+ $("goal").textContent=online?"ルームコード "+room.roomCode+" · 協力して出口へ！":"全員で出口へ！";
+ if(online){
+  setStatus("ONLINE · "+room.roomCode);
+  watchPlayers(rows=>{
+   Object.values(rows).forEach(row=>{
+    if(row.uid===myUid)return;
+    const p=P[row.slot];if(!p)return;
+    p.x=Number(row.x)||0;p.y=Number(row.y)||0;p.done=!!row.done;p.active=true;p.name=row.name||("P"+(row.slot+1));
+   });
+   P.forEach((p,i)=>{if(i!==mySlot&&!Object.values(rows).some(row=>row.slot===i))p.active=false;});
+   members();
+  });
+  watchChat(rows=>{const log=$("chatlog");log.replaceChildren();rows.forEach(m=>{const p=document.createElement("p");p.className="msg";p.textContent=m.name+": "+m.text;log.append(p)});log.scrollTop=log.scrollHeight;});
+ }else{setStatus("LOCAL");members();}
+}
+function members(){$("members").innerHTML=P.map((p,i)=>(p.active?["🔵","🟠","🟣","🟢"][i]:"⚫")+" P"+(i+1)+" "+(p.active?"· "+p.name:"· 待機中")+(i===selected?"（操作中）":"")+(p.done?" ✓":"")).join("<br>");}
+function update(){
+ if(!running||won||!L)return;
+ const sw=L.switch,gate=L.gate;
+ gateOpen=P.some(p=>p.active&&p.x+p.w>sw.x&&p.x<sw.x+sw.w&&Math.abs(p.y+p.h-L.floorY)<4);
+ const now=performance.now();
+ P.forEach((p,i)=>{
+  if(!p.active)return;
+  if(online&&i!==mySlot)return;
+  const m=maps[i],left=!!K[m.l],right=!!K[m.r],jump=!!K[m.j];
+  if(!online&&i===selected){if(T.left){} }
+  const l=left||(!online&&i===selected&&T.left),r=right||(!online&&i===selected&&T.right),j=jump||(!online&&i===selected&&T.jump);
+  const oldX=p.x,oldY=p.y;p.x=Math.max(0,Math.min(W-p.w,p.x+(r?3.5:0)-(l?3.5:0)));
+  p.vy=Math.min(14,p.vy+.62);p.y+=p.vy;p.ground=false;
+  L.platforms.forEach(q=>{if(p.x+p.w>q.x&&p.x<q.x+q.w&&oldY+p.h<=q.y&&p.y+p.h>=q.y&&p.vy>=0){p.y=q.y-p.h;p.vy=0;p.ground=true;}});
+  if(j&&p.ground){p.vy=-12.2;p.ground=false;}
+  if(!gateOpen&&p.x+p.w>gate.x&&p.x<gate.x+gate.w&&p.y+p.h>gate.y&&p.y<gate.y+gate.h){if(oldX+p.w<=gate.x)p.x=gate.x-p.w;else if(oldX>=gate.x+gate.w)p.x=gate.x+gate.w;else p.x=oldX;}
+  if(p.y>620){[p.x,p.y]=L.spawns[i];p.vy=0;}
+  const ex=L.exit;if(p.x+p.w>ex.x&&p.x<ex.x+ex.w&&p.y+p.h>ex.y&&p.y<ex.y+ex.h)p.done=true;
+  if(online&&i===mySlot&&now-lastSync>70){lastSync=now;updateMyPlayer({x:Math.round(p.x),y:Math.round(p.y),done:p.done}).catch(()=>{});}
+ });
+ const active=P.filter(p=>p.active);
+ if(active.length===P.length&&active.length>0&&active.every(p=>p.done)){won=true;$("goal").textContent="全員クリア！";}
+}
+function draw(){
+ const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,"#8bd2e2");sky.addColorStop(1,"#d9f0dc");ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+ if(L){
+  L.platforms.forEach(p=>{ctx.fillStyle="#526d70";ctx.fillRect(p.x,p.y,p.w,p.h);ctx.fillStyle="#a2d5a9";ctx.fillRect(p.x,p.y,p.w,7);});
+  const s=L.switch;ctx.fillStyle=gateOpen?"#ffe17a":"#a65b50";ctx.fillRect(s.x,s.y,s.w,s.h);
+  const b=L.gate;if(!gateOpen){ctx.fillStyle="#b54f58";ctx.fillRect(b.x,b.y,b.w,b.h);}else{ctx.strokeStyle="#6b9b8c";ctx.setLineDash([8,8]);ctx.strokeRect(b.x,b.y,b.w,b.h);ctx.setLineDash([]);}
+  const e=L.exit;ctx.fillStyle="#8af0bd";ctx.fillRect(e.x,e.y,e.w,e.h);
+  P.forEach((p,i)=>{if(!p.active)return;ctx.fillStyle=p.done?"#b7e8c9":colors[i];ctx.fillRect(p.x,p.y,p.w,p.h);ctx.fillStyle="#17364a";ctx.font="bold 13px system-ui";ctx.fillText("P"+(i+1),p.x+3,p.y-7);});
+  if(won){ctx.fillStyle="#061522bb";ctx.fillRect(0,0,W,H);ctx.fillStyle="white";ctx.textAlign="center";ctx.font="bold 42px system-ui";ctx.fillText("TEAMWORK!",W/2,H/2);ctx.textAlign="left";}
+ }
+ requestAnimationFrame(draw);
+}
+function loop(){update();requestAnimationFrame(loop);}
+document.addEventListener("keydown",e=>{K[e.key]=true;if(["ArrowLeft","ArrowRight","ArrowUp"," "].includes(e.key))e.preventDefault();});
+document.addEventListener("keyup",e=>K[e.key]=false);
+$("create").onclick=async()=>{try{showError("接続中...");const n=+$("count").value,s=+$("stageNo").value;roomName=$("playerName").value.trim()||"Player";const room=await createRoom(n,s,roomName);await loadGame(n,s,room);showError("");}catch(e){showError(e.message||"ルーム作成に失敗しました");}};
+$("join").onclick=async()=>{try{showError("接続中...");roomName=$("playerName").value.trim()||"Player";const room=await joinRoom($("roomCode").value,roomName);await loadGame(room.info.playerCount,room.info.stageNo,room);showError("");}catch(e){showError(e.message||"参加できませんでした");}};
+$("local").onclick=async()=>{try{showError("");await loadGame(+$("count").value,+$("stageNo").value); }catch(e){showError(e.message);}};
+$("back").onclick=async()=>{running=false;if(online){await leaveRoom();online=false;myUid=null;mySlot=-1;}setStatus("未接続");showMenu();};
+$("swap").onclick=()=>{if(!online&&P.length){selected=(selected+1)%P.length;members();}};
+document.querySelectorAll("[data-k]").forEach(btn=>{const k=btn.dataset.k;btn.onpointerdown=e=>{e.preventDefault();T[k]=true;};btn.onpointerup=btn.onpointerleave=btn.onpointercancel=()=>T[k]=false;});
+$("chatForm").onsubmit=async e=>{e.preventDefault();const v=$("chatInput").value.trim();if(!v)return;if(!online){const p=document.createElement("p");p.className="msg";p.textContent="Player: "+v;$("chatlog").append(p);}else{try{await sendChat(roomName,v);}catch(err){showError("チャット送信に失敗しました");}}$("chatInput").value="";};
+draw();loop();
