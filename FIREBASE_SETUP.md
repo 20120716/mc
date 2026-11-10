@@ -15,23 +15,19 @@ The game uses Firebase Authentication (anonymous sign-in) and Realtime Database.
 2. Replace the rules with the contents of `database.rules.json`.
 3. Click **Publish**.
 
-The rules allow authenticated users to read room/player/chat data, each player to write only their own player record, and chat messages to be sent under the authenticated user's UID. The room creator controls the room's info.
+The rules allow authenticated users to read room/player/chat data, each player to write only their own player record, authenticated clients to remove records whose heartbeat is older than 15 seconds, and any authenticated client to delete a room only after its players collection is empty.
 
-## 3. Deploy automatic empty-room cleanup
+## 3. Room cleanup without Cloud Functions
 
-The repository includes a Firebase Cloud Function in `functions/index.js`. When a player record is deleted (including by the player's `onDisconnect()` handler), the function runs a Realtime Database transaction at that room. It deletes the entire room only if the players collection is still empty. The transaction protects against deleting a room if someone joins while cleanup is running.
+The game uses a client-side watchdog:
 
-Deployment requires the Firebase CLI and a Firebase project on the **Blaze (pay-as-you-go) plan** for Cloud Functions deployment. Review Google's current pricing and configure a budget alert before enabling billing.
+- Each connected player updates `heartbeatAt` about once per second.
+- Connected clients check the room about every 3 seconds.
+- A player with no heartbeat for 15 seconds is treated as disconnected and removed.
+- When the last player leaves, the client attempts to delete the empty room using a Realtime Database transaction.
+- If every device disappears at once, no JavaScript remains running to perform cleanup. The next client that tries to join that room checks stale heartbeats and removes the expired room.
 
-From the repository root, with Node.js 22 and Firebase CLI installed:
-
-```sh
-firebase login
-npm --prefix functions install
-firebase deploy --only functions:deleteEmptyRoom
-```
-
-The `.firebaserc` file selects project `strikezone-48cf0`. After deployment, the cleanup runs automatically; no client-side admin credentials are needed.
+This approach does not require Cloud Functions or the Blaze plan. It is best-effort client-side cleanup, not a server-side scheduled job. A suspended browser can miss heartbeats, so the 15-second timeout is deliberately longer than the 1-second heartbeat.
 
 ## 4. Host the game
 
@@ -44,4 +40,3 @@ Serve the repository over HTTPS (GitHub Pages is suitable). ES modules and Fireb
 - Joining players receive the next free player slot.
 - Player positions and completion state are synchronized through Realtime Database.
 - Chat is shared by everyone in the room.
-- When the last player leaves or disconnects, the Cloud Function removes the empty room (including its info and chat).
