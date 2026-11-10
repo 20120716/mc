@@ -1,4 +1,4 @@
-import { createRoom, joinRoom, listRooms, watchPlayers, watchChat, updateMyPlayer, sendChat, leaveRoom } from "./online.js?v=20261110c";
+import { createRoom, joinRoom, listRooms, watchPlayers, watchChat, updateMyPlayer, sendChat, leaveRoom } from "./online.js?v=20261110d";
 const $=id=>document.getElementById(id),canvas=$("game"),ctx=canvas.getContext("2d"),W=960,H=540;
 const colors=["#4ed8ff","#ffae58","#b89cff","#83e28c"],maps=[{l:"a",r:"d",j:"w"},{l:"ArrowLeft",r:"ArrowRight",j:"ArrowUp"},{l:"j",r:"l",j:"i"},{l:"4",r:"6",j:"8"}];
 let L=null,P=[],K={},T={left:false,right:false,jump:false},selected=0,gateOpen=false,won=false,running=false,online=false,mySlot=-1,myUid=null,roomName="Player",lastSync=0,currentStage=1;
@@ -161,7 +161,7 @@ $("create").onclick=async()=>{const button=$("create");roomName=requireOnlineNam
 $("local").onclick=async()=>{const button=$("local");try{setBusy(button,true);showError("");roomName=$("playerName").value.trim()||$("settingsName").value.trim()||"Player";showTransition("ゲームを準備中","ステージデータを読み込んでいます");await loadGame(+$("offlineCount").value,+$("offlineStage").value);hideTransition();}catch(e){hideTransition();showError(e.message);}finally{setBusy(button,false);}};
 $("back").onclick=async()=>{running=false;if(online){await leaveRoom();online=false;myUid=null;mySlot=-1;}setStatus("未接続");showMenu();};
 $("swap").onclick=()=>{if(!online&&P.length){selected=(selected+1)%P.length;members();}};
-document.querySelectorAll("[data-k]").forEach(btn=>{const k=btn.dataset.k;btn.onpointerdown=e=>{e.preventDefault();T[k]=true;};btn.onpointerup=btn.onpointerleave=btn.onpointercancel=()=>T[k]=false;});
+document.querySelectorAll("[data-k]").forEach(btn=>{const k=btn.dataset.k;btn.oncontextmenu=e=>e.preventDefault();btn.onpointerdown=e=>{e.preventDefault();btn.setPointerCapture?.(e.pointerId);T[k]=true;};const release=()=>{T[k]=false;};btn.onpointerup=btn.onpointercancel=btn.onlostpointercapture=release;window.addEventListener("blur",release);});
 $("chatForm").onsubmit=async e=>{e.preventDefault();const v=$("chatInput").value.trim();if(!v)return;if(!online){const p=document.createElement("p");p.className="msg";p.textContent="Player: "+v;$("chatlog").append(p);}else{try{await sendChat(roomName,v);}catch(err){showError("チャット送信に失敗しました");}}$("chatInput").value="";};
 refreshStageOptions();
 updateOnlineNameButtons();
