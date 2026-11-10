@@ -67,21 +67,29 @@ function showTransition(title,detail){$("transitionTitle").textContent=title;$("
 function hideTransition(){ $("transitionScreen").classList.remove("active"); }
 function setBusy(button,busy){button.classList.toggle("is-loading",busy);button.disabled=busy;}
 function setStatus(s){$("status").textContent=s}
-function unlockedStage(){return Math.max(1,Math.min(2,Number(localStorage.getItem("together-unlocked-stage")||1)));}
+function unlockedStage(){return Math.max(1,Math.min(10,Number(localStorage.getItem("together-unlocked-stage")||1)));}
 function refreshStageOptions(){
- const unlocked=unlockedStage(),select=$("stageNo"),stage2=select.querySelector('option[value="2"]');
- stage2.disabled=unlocked<2;
- stage2.textContent=unlocked>=2?"STAGE 02":"🔒 STAGE 02（STAGE 01クリアで解放）";
- const offlineStage=$("offlineStage");
- if(offlineStage){const offline2=offlineStage.querySelector('option[value="2"]');offline2.disabled=unlocked<2;offline2.textContent=stage2.textContent;if(Number(offlineStage.value)>unlocked)offlineStage.value="1";}
- if(Number(select.value)>unlocked)select.value="1";
+ const unlocked=unlockedStage();
+ ["stageNo","offlineStage"].forEach(id=>{
+  const select=$(id);if(!select)return;
+  const previous=Number(select.value)||1;
+  select.replaceChildren();
+  for(let stage=1;stage<=10;stage++){
+   const option=document.createElement("option");
+   option.value=String(stage);
+   option.textContent=stage<=unlocked?"STAGE "+String(stage).padStart(2,"0"):"🔒 STAGE "+String(stage).padStart(2,"0")+"（STAGE "+String(stage-1).padStart(2,"0")+"クリアで解放）";
+   option.disabled=stage>unlocked;
+   select.append(option);
+  }
+  select.value=String(Math.min(previous,unlocked));
+ });
 }
 function unlockAfterClear(stage){
- const next=Math.min(2,stage+1);
+ const next=Math.min(10,stage+1);
  if(next>unlockedStage()){
   localStorage.setItem("together-unlocked-stage",String(next));
   refreshStageOptions();
-  $("goal").textContent="STAGE CLEAR！ STAGE 02 解放！";
+  $("goal").textContent="STAGE CLEAR！ STAGE "+String(next).padStart(2,"0")+" 解放！";
  }
 }
 async function loadGame(n,s,room=null){
@@ -129,7 +137,7 @@ function update(){
   if(online&&i===mySlot&&now-lastSync>70){lastSync=now;updateMyPlayer({x:Math.round(p.x),y:Math.round(p.y),done:p.done}).catch(()=>{});}
  });
  const active=P.filter(p=>p.active);
- if(active.length===P.length&&active.length>0&&active.every(p=>p.done)){won=true;unlockAfterClear(currentStage);$("goal").textContent=currentStage===1?"STAGE CLEAR！ STAGE 02 解放！":"全員クリア！";}
+ if(active.length===P.length&&active.length>0&&active.every(p=>p.done)){won=true;unlockAfterClear(currentStage);$("goal").textContent=currentStage<10?"STAGE CLEAR！ 次のステージ解放！":"全10ステージ制覇！おめでとう！";}
 }
 function draw(){
  const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,"#8bd2e2");sky.addColorStop(1,"#d9f0dc");ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
