@@ -1,7 +1,7 @@
-import { createRoom, joinRoom, listRooms, watchPlayers, watchChat, updateMyPlayer, sendChat, leaveRoom } from "./online.js?v=20261111b";
+import { createRoom, joinRoom, listRooms, watchPlayers, watchRoomInfo, watchChat, advanceRoomStage, updateMyPlayer, sendChat, leaveRoom } from "./online.js?v=20261116a";
 const $=id=>document.getElementById(id),canvas=$("game"),ctx=canvas.getContext("2d"),W=960,H=540;
 const colors=["#4ed8ff","#ffae58","#b89cff","#83e28c"],maps=[{l:"a",r:"d",j:"w"},{l:"ArrowLeft",r:"ArrowRight",j:"ArrowUp"},{l:"j",r:"l",j:"i"},{l:"4",r:"6",j:"8"}];
-let L=null,P=[],K={},T={left:false,right:false,jump:false},selected=0,gateOpen=false,won=false,running=false,online=false,mySlot=-1,myUid=null,roomName="Player",lastSync=0,lastFrameAt=0,lastSentX=NaN,lastSentY=NaN,lastSentDone=false,currentStage=1;
+let L=null,P=[],K={},T={left:false,right:false,jump:false},selected=0,gateOpen=false,won=false,running=false,online=false,mySlot=-1,myUid=null,roomName="Player",lastSync=0,lastFrameAt=0,lastSentX=NaN,lastSentY=NaN,lastSentDone=false,currentStage=1,switchActivated=[],currentPlayerCount=2,currentRoom=null,roomInfoWatchStarted=false,stageTransitioning=false,completionHandled=false,lastSentSwitchMask=0;
 function showError(msg){$("error").textContent=msg||""}
 function requireOnlineName(){
  const name=String($("playerName").value||"").trim().slice(0,16);
@@ -89,83 +89,146 @@ function unlockAfterClear(stage){
  if(next>unlockedStage()){
   localStorage.setItem("together-unlocked-stage",String(next));
   refreshStageOptions();
-  $("goal").textContent="STAGE CLEAR！ STAGE "+String(next).padStart(2,"0")+" 解放！";
  }
 }
 async function loadGame(n,s,room=null){
  if(!room&&s>unlockedStage())throw new Error("このステージは未解放です。前のステージをクリアしてください");
- currentStage=s;
- const response=await fetch(`mnt/${n}/s${s}.json`);
+ currentPlayerCount=Number(n)||2;currentStage=Number(s)||1;currentRoom=room||null;
+ const response=await fetch("mnt/"+n+"/s"+s+".json");
  if(!response.ok)throw new Error("ステージデータを読み込めません");
- L=await response.json();P=L.spawns.map(([x,y],i)=>({x,y,targetX:x,targetY:y,remoteReady:false,vx:0,vy:0,w:28,h:42,done:false,ground:false,active:!room||i===room.slot,name:"P"+(i+1)}));
- online=!!room;mySlot=room?room.slot:-1;myUid=room?.uid||null;selected=online?mySlot:0;lastSync=0;lastFrameAt=0;lastSentX=NaN;lastSentY=NaN;lastSentDone=false;won=false;gateOpen=false;running=true;document.querySelector("main")?.classList.remove("game-enter");
+ L=await response.json();
+ const switches=L.switches||(L.switch?[L.switch]:[]);
+ switchActivated=Array(switches.length).fill(false);
+ P=L.spawns.map(([x,y],i)=>({x,y,targetX:x,targetY:y,remoteReady:false,vx:0,vy:0,w:28,h:42,done:false,ground:false,active:!room||i===room.slot,name:"P"+(i+1),switchMask:0}));
+ online=!!room;mySlot=room?room.slot:-1;myUid=room?room.uid:null;selected=online?mySlot:0;
+ lastSync=0;lastFrameAt=0;lastSentX=NaN;lastSentY=NaN;lastSentDone=false;lastSentSwitchMask=0;won=false;gateOpen=false;running=true;completionHandled=false;
+ document.querySelector("main")?.classList.remove("game-enter");
  hideMenu();$("stage").textContent=n+" PLAYERS · STAGE "+String(s).padStart(2,"0");
- $("goal").textContent=online?"ルームコード "+room.roomCode+" · 協力して出口へ！":"全員で出口へ！";
+ $("goal").textContent="スイッチ 0/"+switches.length+" · すべて押して出口へ！";
  if(online){
   setStatus("ONLINE · "+room.roomCode);
   watchPlayers(rows=>{
+   const activeSlots=new Set();
    Object.values(rows).forEach(row=>{
-    if(row.uid===myUid)return;
-    const i=Number(row.slot),p=P[i];if(!p||i===mySlot)return;
+    const i=Number(row.slot),p=P[i];if(!p)return;
+    const rowStage=Number(row.stageNo)||currentStage;if(rowStage!==currentStage)return;
+    activeSlots.add(i);if(row.uid===myUid)return;
     const x=Number(row.x)||0,y=Number(row.y)||0;
     if(!p.remoteReady){p.x=x;p.y=y;p.remoteReady=true;}
-    p.targetX=x;p.targetY=y;p.done=!!row.done;p.active=true;p.name=row.name||("P"+(i+1));
+    p.targetX=x;p.targetY=y;p.done=!!row.done;p.switchMask=Number(row.switchMask)||0;p.active=true;p.name=row.name||("P"+(i+1));
+    switches.forEach((sw,index)=>{if(p.switchMask&(1<<index))switchActivated[index]=true;});
    });
-   P.forEach((p,i)=>{
-    if(i!==mySlot&&!Object.values(rows).some(row=>Number(row.slot)===i)){p.active=false;p.remoteReady=false;}
-   });
+   P.forEach((p,i)=>{if(i!==mySlot&&!activeSlots.has(i)){p.active=false;p.remoteReady=false;}});
    members();
   });
   watchChat(rows=>{const log=$("chatlog");log.replaceChildren();rows.forEach(m=>{const p=document.createElement("p");p.className="msg";p.textContent=m.name+": "+m.text;log.append(p)});log.scrollTop=log.scrollHeight;});
+  if(!roomInfoWatchStarted){
+   roomInfoWatchStarted=true;
+   watchRoomInfo(roomInfo=>{
+    const next=Number(roomInfo&&roomInfo.stageNo)||1;
+    if(online&&next>currentStage&&!stageTransitioning){
+     stageTransitioning=true;unlockAfterClear(next-1);
+     if(currentRoom&&currentRoom.info)currentRoom.info.stageNo=next;
+     showTransition("STAGE CLEAR！","STAGE "+String(next).padStart(2,"0")+" を準備しています");
+     loadGame(currentPlayerCount,next,currentRoom).then(()=>hideTransition()).catch(error=>{
+      stageTransitioning=false;hideTransition();showError(error.message||"次のステージを読み込めませんでした");
+     });
+    }
+   });
+  }
+  const own=P[mySlot];
+  if(own){
+   lastSentX=Math.round(own.x);lastSentY=Math.round(own.y);
+   updateMyPlayer({x:lastSentX,y:lastSentY,done:false,switchMask:0,stageNo:currentStage}).catch(()=>{});
+  }
  }else{setStatus("LOCAL");members();}
+ stageTransitioning=false;
 }
 function members(){$("members").innerHTML=P.map((p,i)=>(p.active?["🔵","🟠","🟣","🟢"][i]:"⚫")+" P"+(i+1)+" "+(p.active?"· "+p.name:"· 待機中")+(i===selected?"（操作中）":"")+(p.done?" ✓":"")).join("<br>");}
+function handleStageClear(){
+ if(completionHandled)return;
+ completionHandled=true;won=true;unlockAfterClear(currentStage);
+ if(currentStage>=10){$("goal").textContent="全10ステージ制覇！おめでとう！";return;}
+ const cleared=currentStage,next=cleared+1;
+ $("goal").textContent="STAGE CLEAR！ 次のステージへ...";
+ showTransition("STAGE CLEAR！","STAGE "+String(next).padStart(2,"0")+" へ進みます");
+ if(online){
+  if(mySlot===0){
+   advanceRoomStage(cleared).catch(error=>{
+    showError("次のステージへ進めませんでした："+(error.message||"Firebaseエラー"));
+    $("goal").textContent="クリア済み · ホストの進行更新を待っています";
+   });
+  }
+ }else{
+  stageTransitioning=true;
+  setTimeout(async()=>{
+   if(!running||currentStage!==cleared)return;
+   try{await loadGame(currentPlayerCount,next);hideTransition();}
+   catch(error){stageTransitioning=false;hideTransition();showError(error.message||"次のステージを読み込めませんでした");}
+  },1100);
+ }
+}
 function update(){
  if(!running||won||!L)return;
- const now=performance.now();
- const frameDelta=lastFrameAt?Math.min(50,now-lastFrameAt):16;
- lastFrameAt=now;
- const blend=1-Math.exp(-frameDelta/70);
- if(online)P.forEach((p,i)=>{
-  if(i===mySlot||!p.active||!p.remoteReady)return;
-  p.x+=(p.targetX-p.x)*blend;
-  p.y+=(p.targetY-p.y)*blend;
- });
- const sw=L.switch,gate=L.gate;
- gateOpen=P.some(p=>p.active&&p.x+p.w>sw.x&&p.x<sw.x+sw.w&&Math.abs(p.y+p.h-L.floorY)<4);
+ const now=performance.now(),frameDelta=lastFrameAt?Math.min(50,now-lastFrameAt):16;
+ lastFrameAt=now;const blend=1-Math.exp(-frameDelta/70);
+ if(online)P.forEach((p,i)=>{if(i!==mySlot&&p.active&&p.remoteReady){p.x+=(p.targetX-p.x)*blend;p.y+=(p.targetY-p.y)*blend;}});
+ const switches=L.switches||(L.switch?[L.switch]:[]);
+ P.forEach(p=>{const mask=Number(p.switchMask)||0;switches.forEach((sw,index)=>{if(mask&(1<<index))switchActivated[index]=true;});});
  P.forEach((p,i)=>{
-  if(!p.active)return;
-  if(online&&i!==mySlot)return;
-  const m=maps[i],left=!!K[m.l],right=!!K[m.r],jump=!!K[m.j];
-  if(!online&&i===selected){if(T.left){} }
-  const localControl=online?i===mySlot:i===selected;const l=left||(localControl&&T.left),r=right||(localControl&&T.right),j=jump||(localControl&&T.jump);
+  if(!p.active||p.done||(online&&i!==mySlot))return;
+  const m=maps[i],left=!!K[m.l],right=!!K[m.r],jump=!!K[m.j],localControl=online?i===mySlot:i===selected;
+  const l=left||(localControl&&T.left),r=right||(localControl&&T.right),j=jump||(localControl&&T.jump);
   const oldX=p.x,oldY=p.y;p.x=Math.max(0,Math.min(W-p.w,p.x+(r?3.5:0)-(l?3.5:0)));
   p.vy=Math.min(14,p.vy+.62);p.y+=p.vy;p.ground=false;
   L.platforms.forEach(q=>{if(p.x+p.w>q.x&&p.x<q.x+q.w&&oldY+p.h<=q.y&&p.y+p.h>=q.y&&p.vy>=0){p.y=q.y-p.h;p.vy=0;p.ground=true;}});
   if(j&&p.ground){p.vy=-12.2;p.ground=false;}
-  if(!gateOpen&&p.x+p.w>gate.x&&p.x<gate.x+gate.w&&p.y+p.h>gate.y&&p.y<gate.y+gate.h){if(oldX+p.w<=gate.x)p.x=gate.x-p.w;else if(oldX>=gate.x+gate.w)p.x=gate.x+gate.w;else p.x=oldX;}
+  if(!gateOpen&&p.x+p.w>L.gate.x&&p.x<L.gate.x+L.gate.w&&p.y+p.h>L.gate.y&&p.y<L.gate.y+L.gate.h){
+   if(oldX+p.w<=L.gate.x)p.x=L.gate.x-p.w;else if(oldX>=L.gate.x+L.gate.w)p.x=L.gate.x+L.gate.w;else p.x=oldX;
+  }
   if(p.y>620){[p.x,p.y]=L.spawns[i];p.vy=0;}
-  const ex=L.exit;if(p.x+p.w>ex.x&&p.x<ex.x+ex.w&&p.y+p.h>ex.y&&p.y<ex.y+ex.h)p.done=true;
-  if(online&&i===mySlot&&now-lastSync>=100){
-   const syncX=Math.round(p.x),syncY=Math.round(p.y);
-   if(syncX!==lastSentX||syncY!==lastSentY||p.done!==lastSentDone){
-    lastSync=now;lastSentX=syncX;lastSentY=syncY;lastSentDone=p.done;
-    updateMyPlayer({x:syncX,y:syncY,done:p.done}).catch(()=>{});
+  const ex=L.exit;if(gateOpen&&p.x+p.w>ex.x&&p.x<ex.x+ex.w&&p.y+p.h>ex.y&&p.y<ex.y+ex.h)p.done=true;
+ });
+ let switchChanged=false;
+ P.forEach((p,i)=>{
+  if(!p.active||p.done)return;
+  switches.forEach((sw,index)=>{
+   if(Math.abs((p.y+p.h)-(sw.y+sw.h))>=5||p.x+p.w<=sw.x||p.x>=sw.x+sw.w)return;
+   if(!switchActivated[index]){switchActivated[index]=true;switchChanged=true;}
+   const bit=1<<index;
+   if((!online||i===mySlot)&&!((Number(p.switchMask)||0)&bit)){
+    p.switchMask=(Number(p.switchMask)||0)|bit;
+    if(online&&i===mySlot)updateMyPlayer({x:Math.round(p.x),y:Math.round(p.y),done:p.done,switchMask:p.switchMask,stageNo:currentStage}).catch(()=>{});
+   }
+  });
+ });
+ const wasOpen=gateOpen;gateOpen=switches.length>0&&switchActivated.every(Boolean);
+ if(switchChanged||gateOpen!==wasOpen){
+  const pressed=switchActivated.filter(Boolean).length;
+  $("goal").textContent=gateOpen?"GATE OPEN！ 全員で出口へ！":"スイッチ "+pressed+"/"+switches.length+" · 残りを押そう！";
+ }
+ if(online&&mySlot>=0){
+  const p=P[mySlot];
+  if(p&&now-lastSync>=100){
+   const sx=Math.round(p.x),sy=Math.round(p.y),mask=Number(p.switchMask)||0;
+   if(sx!==lastSentX||sy!==lastSentY||p.done!==lastSentDone||mask!==lastSentSwitchMask){
+    lastSync=now;lastSentX=sx;lastSentY=sy;lastSentDone=p.done;lastSentSwitchMask=mask;
+    updateMyPlayer({x:sx,y:sy,done:p.done,switchMask:mask,stageNo:currentStage}).catch(()=>{});
    }
   }
- });
- const active=P.filter(p=>p.active);
- if(active.length===P.length&&active.length>0&&active.every(p=>p.done)){won=true;unlockAfterClear(currentStage);$("goal").textContent=currentStage<10?"STAGE CLEAR！ STAGE "+String(currentStage+1).padStart(2,"0")+" 解放！":"全10ステージ制覇！おめでとう！";}
+ }
+ const active=P.filter(p=>p.active);if(active.length===P.length&&active.length>0&&active.every(p=>p.done))handleStageClear();
 }
 function draw(){
  const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,"#8bd2e2");sky.addColorStop(1,"#d9f0dc");ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
  if(L){
   L.platforms.forEach(p=>{ctx.fillStyle="#526d70";ctx.fillRect(p.x,p.y,p.w,p.h);ctx.fillStyle="#a2d5a9";ctx.fillRect(p.x,p.y,p.w,7);});
-  const s=L.switch;ctx.fillStyle=gateOpen?"#ffe17a":"#a65b50";ctx.fillRect(s.x,s.y,s.w,s.h);
+  const switches=L.switches||(L.switch?[L.switch]:[]);
+  switches.forEach((s,i)=>{ctx.fillStyle=switchActivated[i]?"#42b98a":"#a65b50";ctx.fillRect(s.x,s.y,s.w,s.h);ctx.fillStyle="#fff";ctx.font="bold 12px system-ui";ctx.textAlign="center";ctx.fillText(String(i+1),s.x+s.w/2,s.y+14);ctx.textAlign="left";});
   const b=L.gate;if(!gateOpen){ctx.fillStyle="#b54f58";ctx.fillRect(b.x,b.y,b.w,b.h);}else{ctx.strokeStyle="#6b9b8c";ctx.setLineDash([8,8]);ctx.strokeRect(b.x,b.y,b.w,b.h);ctx.setLineDash([]);}
   const e=L.exit;ctx.fillStyle="#8af0bd";ctx.fillRect(e.x,e.y,e.w,e.h);
   P.forEach((p,i)=>{if(!p.active)return;ctx.fillStyle=p.done?"#b7e8c9":colors[i];ctx.fillRect(p.x,p.y,p.w,p.h);ctx.fillStyle="#17364a";ctx.font="bold 13px system-ui";ctx.fillText("P"+(i+1),p.x+3,p.y-7);});
-  if(won){ctx.fillStyle="#061522bb";ctx.fillRect(0,0,W,H);ctx.fillStyle="white";ctx.textAlign="center";ctx.font="bold 42px system-ui";ctx.fillText("TEAMWORK!",W/2,H/2);ctx.textAlign="left";}
+  if(won){ctx.fillStyle="#061522bb";ctx.fillRect(0,0,W,H);ctx.fillStyle="white";ctx.textAlign="center";ctx.font="bold 42px system-ui";ctx.fillText(currentStage>=10?"ALL STAGES CLEAR!":"TEAMWORK!",W/2,H/2);ctx.textAlign="left";}
  }
  requestAnimationFrame(draw);
 }
@@ -185,7 +248,7 @@ $("createPasswordMode").onchange=()=>{const enabled=$("createPasswordMode").valu
 $("create").onclick=async()=>{const button=$("create");roomName=requireOnlineName();if(!roomName)return;try{setBusy(button,true);showError("");showTransition("ルームを作成中","オンライン環境を準備しています");const n=+$("count").value,s=+$("stageNo").value;const password=$("createPasswordMode").value==="password"?$("createPassword").value:"";if(password&&password.length<4)throw new Error("パスワードは4文字以上にしてください");if($("createPasswordMode").value==="password"&&!password)throw new Error("パスワードを入力してください");const room=await createRoom(n,s,roomName,password);await loadGame(n,s,room);hideTransition();showError("");}catch(e){hideTransition();showError(e.message||"ルーム作成に失敗しました");}finally{setBusy(button,false);}};
 
 $("local").onclick=async()=>{const button=$("local");try{setBusy(button,true);showError("");roomName=$("playerName").value.trim()||$("settingsName").value.trim()||"Player";showTransition("ゲームを準備中","ステージデータを読み込んでいます");await loadGame(+$("offlineCount").value,+$("offlineStage").value);hideTransition();}catch(e){hideTransition();showError(e.message);}finally{setBusy(button,false);}};
-$("back").onclick=async()=>{running=false;if(online){await leaveRoom();online=false;myUid=null;mySlot=-1;}setStatus("未接続");showMenu();};
+$("back").onclick=async()=>{running=false;if(online){await leaveRoom();online=false;myUid=null;mySlot=-1;currentRoom=null;roomInfoWatchStarted=false;}setStatus("未接続");showMenu();};
 $("swap").onclick=()=>{if(!online&&P.length){selected=(selected+1)%P.length;members();}};
 document.querySelectorAll("[data-k]").forEach(btn=>{const k=btn.dataset.k;btn.oncontextmenu=e=>e.preventDefault();btn.onpointerdown=e=>{e.preventDefault();btn.setPointerCapture?.(e.pointerId);T[k]=true;};const release=()=>{T[k]=false;};btn.onpointerup=btn.onpointercancel=btn.onlostpointercapture=release;window.addEventListener("blur",release);});
 $("chatForm").onsubmit=async e=>{e.preventDefault();const v=$("chatInput").value.trim();if(!v)return;if(!online){const p=document.createElement("p");p.className="msg";p.textContent="Player: "+v;$("chatlog").append(p);}else{try{await sendChat(roomName,v);}catch(err){showError("チャット送信に失敗しました");}}$("chatInput").value="";};

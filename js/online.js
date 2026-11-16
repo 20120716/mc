@@ -23,6 +23,7 @@ let playerRef = null;
 let playerName = "Player";
 let stopPlayers = null;
 let stopChat = null;
+let stopRoomInfo = null;
 let heartbeatTimer = null;
 let watchdogTimer = null;
 let disconnectOperation = null;
@@ -186,6 +187,8 @@ async function reserveSlot(code, name, roomInfo) {
     x: 55 + slot * 42,
     y: 405,
     done: false,
+    switchMask: 0,
+    stageNo: Number(roomInfo.stageNo) || 1,
     updatedAt: Date.now(),
     heartbeatAt: serverTimestamp()
   };
@@ -334,6 +337,29 @@ export function watchPlayers(callback) {
   });
 }
 
+export function watchRoomInfo(callback) {
+  if (stopRoomInfo) stopRoomInfo();
+  if (!roomCode) return () => {};
+  stopRoomInfo = onValue(ref(db, "rooms/" + roomCode + "/info"), snapshot => {
+    callback(snapshot.val() || {});
+  });
+  return stopRoomInfo;
+}
+
+export async function advanceRoomStage(expectedStage) {
+  if (!roomCode || !uid || slot !== 0) return false;
+  const infoRef = ref(db, "rooms/" + roomCode + "/info");
+  const result = await runTransaction(infoRef, current => {
+    if (!current || current.hostUid !== uid || Number(current.stageNo) !== Number(expectedStage)) return;
+    return {...current, stageNo:Number(expectedStage)+1, updatedAt:Date.now()};
+  }, {applyLocally:false});
+  if (!result.committed) return false;
+  info = result.snapshot.val();
+  await update(ref(db, "publicRooms/" + roomCode), {stageNo:Number(info.stageNo)})
+    .catch(error => console.warn("TOGETHER room stage listing:", error));
+  return true;
+}
+
 export function watchChat(callback) {
   if (stopChat) stopChat();
   stopChat = onValue(chatRef, snapshot => {
@@ -373,8 +399,10 @@ export async function leaveRoom() {
   clearPresenceTimers();
   if (stopPlayers) stopPlayers();
   if (stopChat) stopChat();
+  if (stopRoomInfo) stopRoomInfo();
   stopPlayers = null;
   stopChat = null;
+  stopRoomInfo = null;
 
   if (disconnectOperation) {
     await disconnectOperation.cancel().catch(() => {});
