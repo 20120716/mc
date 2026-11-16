@@ -101,7 +101,7 @@ async function loadGame(n,s,room=null){
  switchActivated=Array(switches.length).fill(false);
  P=L.spawns.map(([x,y],i)=>({x,y,targetX:x,targetY:y,remoteReady:false,vx:0,vy:0,w:28,h:42,done:false,ground:false,active:!room||i===room.slot,name:"P"+(i+1),switchMask:0}));
  online=!!room;mySlot=room?room.slot:-1;myUid=room?room.uid:null;selected=online?mySlot:0;
- lastSync=0;lastFrameAt=0;lastSentX=NaN;lastSentY=NaN;lastSentDone=false;lastSentSwitchMask=0;won=false;gateOpen=false;running=true;completionHandled=false;
+ lastSync=0;lastFrameAt=0;lastSentX=NaN;lastSentY=NaN;lastSentDone=false;lastSentSwitchMask=0;won=false;gateOpen=false;running=true;completionHandled=false;gameLoopErrorShown=false;
  document.querySelector("main")?.classList.remove("game-enter");
  hideMenu();$("stage").textContent=n+" PLAYERS · STAGE "+String(s).padStart(2,"0");
  $("goal").textContent="スイッチ 0/"+switches.length+" · すべて押して出口へ！";
