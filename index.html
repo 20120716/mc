@@ -134,6 +134,12 @@ body.reduce-motion *,body.reduce-motion *:before,body.reduce-motion *:after{anim
 @keyframes roomCardIn{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:none}}
 @media(max-width:720px){.menu-shell{grid-template-columns:1fr}.menu-nav{min-height:0;padding:17px;display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.nav-brand{grid-column:1/-1;margin:0 0 5px}.nav-tile{min-height:84px;flex-direction:column;align-items:flex-start;gap:5px;padding:9px}.nav-tile .nav-icon{width:29px;height:29px;flex-basis:29px;font-size:16px}.nav-tile b{font-size:10px}.nav-tile small{font-size:8px}.nav-tile i{display:none}.menu-nav .menu-footnote{display:none}.menu-actions{padding:19px;max-height:58vh}.room-list{max-height:170px}}
 
+/* Fixed version label at the bottom of the home screen */
+#menu{padding-bottom:34px}
+.menu-shell{max-height:calc(94vh - 34px)}
+.app-version{position:absolute;left:0;right:0;bottom:8px;text-align:center;pointer-events:none;color:#6f8da4;font-size:10px;letter-spacing:.14em;text-shadow:0 1px 8px #000}
+.app-version span{color:#8eeaff;font-weight:800;margin-left:5px}
+@media(max-width:720px){#menu{padding-bottom:30px}.menu-shell{max-height:calc(94vh - 30px)}.app-version{bottom:6px}}
 </style></head><body>
 <header><span>✦ TOGETHER — CO-OP PUZZLE (2–4 PLAYERS)</span><span id="status">未接続</span></header>
 <main><section class="panel"><div class="row"><b id="stage">STAGE —</b><span id="goal">ルームに参加しよう</span><button id="back">メニュー</button></div><canvas id="game" width="960" height="540"></canvas>
@@ -181,12 +187,12 @@ body.reduce-motion *,body.reduce-motion *:before,body.reduce-motion *:after{anim
    </div>
    <div id="error" class="hint menu-message" aria-live="polite"></div>
    <p class="security-note">オンラインはFirebase匿名認証を使用します。初回はネット接続が必要です。</p>
-   <div class="app-version">TOGETHER <span>v1.01</span></div>
   </section>
 
  </div>
+ <div class="app-version">TOGETHER <span>v1.01</span></div>
 </div>
 <div id="transitionScreen" class="transition-screen" aria-live="polite">
  <div class="transition-card"><div class="loader-orbit"><i></i><i></i><i></i></div><p class="eyebrow">TOGETHER / CONNECTING</p><h2 id="transitionTitle">ルームに接続中</h2><p id="transitionDetail">メンバーを確認しています<span class="loading-dots"></span></p></div>
 </div>
-<script type="module" src="js/game.js?v=20261116g"></script></body></html>
+<script type="module" src="js/game.js?v=20261116h"></script></body></html>
