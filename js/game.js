@@ -119,7 +119,7 @@ async function loadGame(n,s,room=null){
     switches.forEach((sw,index)=>{if(p.switchMask&(1<<index))switchActivated[index]=true;});
    });
    P.forEach((p,i)=>{if(i!==mySlot&&!activeSlots.has(i)){p.active=false;p.remoteReady=false;}});
-   members();refreshGateMessage();
+   members();refreshGateMessage();checkStageCompletion();
   });
   watchChat(rows=>{const log=$("chatlog");log.replaceChildren();rows.forEach(m=>{const p=document.createElement("p");p.className="msg";p.textContent=m.name+": "+m.text;log.append(p)});log.scrollTop=log.scrollHeight;});
   if(!roomInfoWatchStarted){
@@ -158,6 +158,22 @@ function refreshGateMessage(){
  if(!gateOpen||won)return;
  const activeCount=P.filter(p=>p.active).length;
  $("goal").textContent="GATE OPEN！ "+activeCount+"人で出口へ！";
+}
+function checkStageCompletion(){
+ if(!running||won||completionHandled)return;
+ const active=P.filter(p=>p.active);
+ const doneCount=active.filter(p=>p.done).length;
+ // オンラインでは、部屋の定員分のプレイヤーが揃うまで先に進めない。
+ // 接続途中の一瞬だけ自分しか見えていない状態で、誤ってクリアするのを防ぐ。
+ if(active.length!==currentPlayerCount){
+  if(online&&gateOpen)$("goal").textContent="GATE OPEN！ ゴール済み "+doneCount+"/"+currentPlayerCount+"人 · 全員の参加を待っています";
+  return;
+ }
+ if(doneCount===currentPlayerCount){
+  handleStageClear();
+ }else if(gateOpen){
+  $("goal").textContent="GATE OPEN！ ゴール済み "+doneCount+"/"+currentPlayerCount+"人 · 残りのプレイヤーを待っています";
+ }
 }
 function handleStageClear(){
  if(completionHandled)return;
@@ -232,7 +248,7 @@ function update(){
    }
   }
  }
- const active=P.filter(p=>p.active);if(active.length>0&&active.every(p=>p.done))handleStageClear();
+ checkStageCompletion();
 }
 function draw(){
  const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,"#8bd2e2");sky.addColorStop(1,"#d9f0dc");ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
