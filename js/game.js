@@ -1,4 +1,4 @@
-import { createRoom, joinRoom, listRooms, watchPlayers, watchRoomInfo, watchChat, advanceRoomStage, updateMyPlayer, sendChat, leaveRoom } from "./online.js?v=20261116c";
+import { createRoom, joinRoom, listRooms, watchPlayers, watchRoomInfo, watchChat, advanceRoomStage, updateMyPlayer, sendChat, leaveRoom } from "./online.js?v=20261116d";
 const $=id=>document.getElementById(id),canvas=$("game"),ctx=canvas.getContext("2d"),W=960,H=540;
 const colors=["#4ed8ff","#ffae58","#b89cff","#83e28c"],maps=[{l:"a",r:"d",j:"w"},{l:"ArrowLeft",r:"ArrowRight",j:"ArrowUp"},{l:"j",r:"l",j:"i"},{l:"4",r:"6",j:"8"}];
 let L=null,P=[],K={},T={left:false,right:false,jump:false},selected=0,gateOpen=false,won=false,running=false,online=false,mySlot=-1,myUid=null,roomName="Player",lastSync=0,lastFrameAt=0,lastSentX=NaN,lastSentY=NaN,lastSentDone=false,currentStage=1,switchActivated=[],currentPlayerCount=2,currentRoom=null,roomInfoWatchStarted=false,stageTransitioning=false,completionHandled=false,lastSentSwitchMask=0;
@@ -119,7 +119,7 @@ async function loadGame(n,s,room=null){
     switches.forEach((sw,index)=>{if(p.switchMask&(1<<index))switchActivated[index]=true;});
    });
    P.forEach((p,i)=>{if(i!==mySlot&&!activeSlots.has(i)){p.active=false;p.remoteReady=false;}});
-   members();
+   members();refreshGateMessage();
   });
   watchChat(rows=>{const log=$("chatlog");log.replaceChildren();rows.forEach(m=>{const p=document.createElement("p");p.className="msg";p.textContent=m.name+": "+m.text;log.append(p)});log.scrollTop=log.scrollHeight;});
   if(!roomInfoWatchStarted){
@@ -144,7 +144,21 @@ async function loadGame(n,s,room=null){
  }else{setStatus("LOCAL");members();}
  stageTransitioning=false;
 }
-function members(){$("members").innerHTML=P.map((p,i)=>(p.active?["🔵","🟠","🟣","🟢"][i]:"⚫")+" P"+(i+1)+" "+(p.active?"· "+p.name:"· 待機中")+(i===selected?"（操作中）":"")+(p.done?" ✓":"")).join("<br>");}
+function members(){
+ const box=$("members");box.replaceChildren();
+ const activeCount=P.filter(p=>p.active).length;
+ const count=document.createElement("div");count.textContent="接続中 "+activeCount+"/"+P.length+"人";box.append(count);
+ P.forEach((p,i)=>{
+  const line=document.createElement("div");
+  line.textContent=(p.active?["🔵","🟠","🟣","🟢"][i]:"⚫")+" P"+(i+1)+" "+(p.active?"· "+p.name:"· 待機中")+(i===selected?"（操作中）":"")+(p.done?" ✓":"");
+  box.append(line);
+ });
+}
+function refreshGateMessage(){
+ if(!gateOpen||won)return;
+ const activeCount=P.filter(p=>p.active).length;
+ $("goal").textContent="GATE OPEN！ "+activeCount+"人で出口へ！";
+}
 function handleStageClear(){
  if(completionHandled)return;
  completionHandled=true;won=true;unlockAfterClear(currentStage);
@@ -153,15 +167,13 @@ function handleStageClear(){
  $("goal").textContent="STAGE CLEAR！ 次のステージへ...";
  showTransition("STAGE CLEAR！","STAGE "+String(next).padStart(2,"0")+" へ進みます");
  if(online){
-  if(mySlot===0){
-   advanceRoomStage(cleared).then(advanced=>{
-    if(!advanced)throw new Error("ホスト権限またはステージ番号が一致せず、進行を更新できませんでした");
-   }).catch(error=>{
-    stageTransitioning=false;hideTransition();
-    showError("次のステージへ進めませんでした："+(error.message||"Firebaseエラー"));
-    $("goal").textContent="クリア済み · 進行更新に失敗しました";
-   });
-  }
+  advanceRoomStage(cleared).then(advanced=>{
+   if(!advanced)throw new Error("ステージ番号が一致せず、進行を更新できませんでした");
+  }).catch(error=>{
+   stageTransitioning=false;hideTransition();
+   showError("次のステージへ進めませんでした："+(error.message||"Firebaseエラー"));
+   $("goal").textContent="クリア済み · 進行更新に失敗しました";
+  });
  }else{
   stageTransitioning=true;
   setTimeout(async()=>{
@@ -208,7 +220,7 @@ function update(){
  const wasOpen=gateOpen;gateOpen=switches.length>0&&switchActivated.every(Boolean);
  if(switchChanged||gateOpen!==wasOpen){
   const pressed=switchActivated.filter(Boolean).length;
-  $("goal").textContent=gateOpen?"GATE OPEN！ 全員で出口へ！":"スイッチ "+pressed+"/"+switches.length+" · 残りを押そう！";
+  $("goal").textContent=gateOpen?"GATE OPEN！ "+P.filter(p=>p.active).length+"人で出口へ！":"スイッチ "+pressed+"/"+switches.length+" · 残りを押そう！";
  }
  if(online&&mySlot>=0){
   const p=P[mySlot];
@@ -220,7 +232,7 @@ function update(){
    }
   }
  }
- const active=P.filter(p=>p.active);if(active.length===P.length&&active.length>0&&active.every(p=>p.done))handleStageClear();
+ const active=P.filter(p=>p.active);if(active.length>0&&active.every(p=>p.done))handleStageClear();
 }
 function draw(){
  const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,"#8bd2e2");sky.addColorStop(1,"#d9f0dc");ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
@@ -235,7 +247,18 @@ function draw(){
  }
  requestAnimationFrame(draw);
 }
-function loop(){update();requestAnimationFrame(loop);}
+let gameLoopErrorShown=false;
+function loop(){
+ try{update();}
+ catch(error){
+  if(!gameLoopErrorShown){
+   gameLoopErrorShown=true;
+   console.error("TOGETHER game loop:",error);
+   showError("ゲーム処理でエラーが発生しました："+(error.message||"不明なエラー")+"。メニューから再接続してください。");
+  }
+ }
+ requestAnimationFrame(loop);
+}
 document.addEventListener("keydown",e=>{K[e.key]=true;if(["ArrowLeft","ArrowRight","ArrowUp"," "].includes(e.key))e.preventDefault();});
 document.addEventListener("keyup",e=>K[e.key]=false);
 document.querySelectorAll(".nav-tile").forEach(button=>button.onclick=()=>showMenuView(button.dataset.view));
