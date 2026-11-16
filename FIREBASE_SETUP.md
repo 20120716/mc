@@ -37,5 +37,7 @@ Serve the repository over HTTPS (GitHub Pages is suitable). ES modules and Fireb
 - The room creator chooses 2, 3, or 4 players and a stage.
 - Joining players receive the next free player slot.
 - Player positions and completion state are synchronized through Realtime Database.
+- A disconnected player is removed after the server-side disconnect event or the 15-second heartbeat timeout, and no longer blocks the remaining players from clearing a stage.
+- Any currently connected room member can advance the shared stage by exactly one, so the original host does not have to remain in the room.
 - Chat is shared by everyone in the room.
 - Heartbeat timeout is 15 seconds; the watchdog checks every 3 seconds.
