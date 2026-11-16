@@ -1,4 +1,4 @@
-import { createRoom, joinRoom, listRooms, watchPlayers, watchRoomInfo, watchChat, advanceRoomStage, updateMyPlayer, sendChat, leaveRoom } from "./online.js?v=20261116d";
+import { createRoom, joinRoom, listRooms, watchPlayers, watchRoomInfo, watchChat, advanceRoomStage, updateMyPlayer, sendChat, leaveRoom } from "./online.js?v=20261116i";
 const $=id=>document.getElementById(id),canvas=$("game"),ctx=canvas.getContext("2d"),W=960,H=540;
 const colors=["#4ed8ff","#ffae58","#b89cff","#83e28c"],maps=[{l:"a",r:"d",j:"w"},{l:"ArrowLeft",r:"ArrowRight",j:"ArrowUp"},{l:"j",r:"l",j:"i"},{l:"4",r:"6",j:"8"}];
 let L=null,P=[],K={},T={left:false,right:false,jump:false},selected=0,gateOpen=false,won=false,running=false,online=false,mySlot=-1,myUid=null,roomName="Player",lastSync=0,lastFrameAt=0,lastSentX=NaN,lastSentY=NaN,lastSentDone=false,currentStage=1,switchActivated=[],currentPlayerCount=2,currentRoom=null,roomInfoWatchStarted=false,stageTransitioning=false,completionHandled=false,lastSentSwitchMask=0,ownDoneSynced=false,ownDoneSyncPending=false;
@@ -139,7 +139,7 @@ async function loadGame(n,s,room=null){
   const own=P[mySlot];
   if(own){
    lastSentX=Math.round(own.x);lastSentY=Math.round(own.y);
-   updateMyPlayer({x:lastSentX,y:lastSentY,done:false,switchMask:0,stageNo:currentStage}).catch(()=>{});
+   updateMyPlayer({x:lastSentX,y:lastSentY,resetDone:true,switchMask:0,stageNo:currentStage}).catch(()=>{});
   }
  }else{setStatus("LOCAL");members();}
  stageTransitioning=false;
