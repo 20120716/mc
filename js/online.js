@@ -347,20 +347,38 @@ export function watchRoomInfo(callback) {
 }
 
 export async function advanceRoomStage(expectedStage) {
-  if (!roomCode || !uid) throw new Error("ルーム接続情報がありません");
-  if (slot !== 0) throw new Error("ホスト以外のプレイヤーからは進行できません");
+  if (!roomCode || !uid || !playerRef) throw new Error("ルーム接続情報がありません");
+  const expected = Number(expectedStage);
   const infoRef = ref(db, "rooms/" + roomCode + "/info");
-  const snapshot = await get(infoRef);
-  const current = snapshot.val();
-  if (!current || current.hostUid !== uid) throw new Error("ホスト認証に失敗しました");
-  if (Number(current.stageNo) !== Number(expectedStage)) {
-    // Another client may already have advanced this room.
-    return Number(current.stageNo) > Number(expectedStage);
+
+  // A remaining participant may advance the room even when its original host
+  // has left. Check that this client is still registered in this stage.
+  const memberSnapshot = await get(playerRef);
+  const member = memberSnapshot.val();
+  if (!member) throw new Error("ルームから退出した状態です");
+  if (Number(member.stageNo) !== expected) {
+    const currentSnapshot = await get(infoRef);
+    const currentStage = Number(currentSnapshot.val()?.stageNo) || 1;
+    if (currentStage > expected) return true;
+    throw new Error("現在のステージ情報が一致しません。ルームに入り直してください");
   }
-  const nextStage = Number(expectedStage) + 1;
-  await update(infoRef, {stageNo:nextStage, updatedAt:Date.now()});
-  info = {...current, stageNo:nextStage, updatedAt:Date.now()};
-  await update(ref(db, "publicRooms/" + roomCode), {stageNo:nextStage})
+
+  const result = await runTransaction(infoRef, current => {
+    if (!current) return;
+    const stage = Number(current.stageNo) || 1;
+    if (stage > expected) return;
+    if (stage !== expected) return;
+    return {...current, stageNo: expected + 1};
+  }, {applyLocally:false});
+
+  const updated = result.snapshot.val();
+  if (!result.committed) {
+    if (Number(updated?.stageNo) > expected) return true;
+    throw new Error("ステージ進行をFirebaseが拒否しました。データベースルールを公開してください");
+  }
+
+  info = updated;
+  await update(ref(db, "publicRooms/" + roomCode), {stageNo: expected + 1})
     .catch(error => console.warn("TOGETHER room stage listing:", error));
   return true;
 }
