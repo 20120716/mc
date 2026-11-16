@@ -394,8 +394,17 @@ export function watchChat(callback) {
 
 export function updateMyPlayer(data) {
   if (!roomCode || !uid || !playerRef) return Promise.resolve();
+  const payload = {...data};
+  // ゴール判定はステージ中に true へラッチする。
+  // 通常の位置同期(false)で完了状態を巻き戻さない。
+  if (payload.resetDone === true) {
+    payload.done = false;
+    delete payload.resetDone;
+  } else if (payload.done !== true) {
+    delete payload.done;
+  }
   return update(playerRef, {
-    ...data,
+    ...payload,
     uid,
     name: playerName,
     slot,
