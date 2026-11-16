@@ -1,7 +1,7 @@
 import { createRoom, joinRoom, listRooms, watchPlayers, watchRoomInfo, watchChat, advanceRoomStage, updateMyPlayer, sendChat, leaveRoom } from "./online.js?v=20261116d";
 const $=id=>document.getElementById(id),canvas=$("game"),ctx=canvas.getContext("2d"),W=960,H=540;
 const colors=["#4ed8ff","#ffae58","#b89cff","#83e28c"],maps=[{l:"a",r:"d",j:"w"},{l:"ArrowLeft",r:"ArrowRight",j:"ArrowUp"},{l:"j",r:"l",j:"i"},{l:"4",r:"6",j:"8"}];
-let L=null,P=[],K={},T={left:false,right:false,jump:false},selected=0,gateOpen=false,won=false,running=false,online=false,mySlot=-1,myUid=null,roomName="Player",lastSync=0,lastFrameAt=0,lastSentX=NaN,lastSentY=NaN,lastSentDone=false,currentStage=1,switchActivated=[],currentPlayerCount=2,currentRoom=null,roomInfoWatchStarted=false,stageTransitioning=false,completionHandled=false,lastSentSwitchMask=0;
+let L=null,P=[],K={},T={left:false,right:false,jump:false},selected=0,gateOpen=false,won=false,running=false,online=false,mySlot=-1,myUid=null,roomName="Player",lastSync=0,lastFrameAt=0,lastSentX=NaN,lastSentY=NaN,lastSentDone=false,currentStage=1,switchActivated=[],currentPlayerCount=2,currentRoom=null,roomInfoWatchStarted=false,stageTransitioning=false,completionHandled=false,lastSentSwitchMask=0,ownDoneSynced=false,ownDoneSyncPending=false;
 function showError(msg){$("error").textContent=msg||""}
 function requireOnlineName(){
  const name=String($("playerName").value||"").trim().slice(0,16);
@@ -101,7 +101,7 @@ async function loadGame(n,s,room=null){
  switchActivated=Array(switches.length).fill(false);
  P=L.spawns.map(([x,y],i)=>({x,y,targetX:x,targetY:y,remoteReady:false,vx:0,vy:0,w:28,h:42,done:false,ground:false,active:!room||i===room.slot,name:"P"+(i+1),switchMask:0}));
  online=!!room;mySlot=room?room.slot:-1;myUid=room?room.uid:null;selected=online?mySlot:0;
- lastSync=0;lastFrameAt=0;lastSentX=NaN;lastSentY=NaN;lastSentDone=false;lastSentSwitchMask=0;won=false;gateOpen=false;running=true;completionHandled=false;gameLoopErrorShown=false;
+ lastSync=0;lastFrameAt=0;lastSentX=NaN;lastSentY=NaN;lastSentDone=false;lastSentSwitchMask=0;ownDoneSynced=false;ownDoneSyncPending=false;won=false;gateOpen=false;running=true;completionHandled=false;gameLoopErrorShown=false;
  document.querySelector("main")?.classList.remove("game-enter");
  hideMenu();$("stage").textContent=n+" PLAYERS · STAGE "+String(s).padStart(2,"0");
  $("goal").textContent="スイッチ 0/"+switches.length+" · すべて押して出口へ！";
@@ -161,6 +161,8 @@ function refreshGateMessage(){
 }
 function checkStageCompletion(){
  if(!running||won||completionHandled)return;
+ // 自分のゴール状態がFirebaseへ保存されたことを確認してから、チームクリアを判定する。
+ if(online&&!ownDoneSynced)return;
  const active=P.filter(p=>p.active);
  const doneCount=active.filter(p=>p.done).length;
  // オンラインでは、部屋の定員分のプレイヤーが揃うまで先に進めない。
@@ -244,7 +246,12 @@ function update(){
    const sx=Math.round(p.x),sy=Math.round(p.y),mask=Number(p.switchMask)||0;
    if(sx!==lastSentX||sy!==lastSentY||p.done!==lastSentDone||mask!==lastSentSwitchMask){
     lastSync=now;lastSentX=sx;lastSentY=sy;lastSentDone=p.done;lastSentSwitchMask=mask;
-    updateMyPlayer({x:sx,y:sy,done:p.done,switchMask:mask,stageNo:currentStage}).catch(()=>{});
+    const write=updateMyPlayer({x:sx,y:sy,done:p.done,switchMask:mask,stageNo:currentStage});
+    if(p.done&&!ownDoneSynced&&!ownDoneSyncPending){
+     ownDoneSyncPending=true;
+     write.then(()=>{ownDoneSynced=true;ownDoneSyncPending=false;checkStageCompletion();})
+      .catch(error=>{ownDoneSyncPending=false;lastSentDone=false;console.warn("TOGETHER goal sync:",error);});
+    }else write.catch(()=>{});
    }
   }
  }
