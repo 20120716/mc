@@ -6,7 +6,7 @@
         ".write": "auth != null && !newData.exists() && !data.child('players').exists()",
         "info": {
           ".read": "auth != null",
-          ".write": "auth != null && ((!data.exists() && newData.child('hostUid').val() === auth.uid) || (data.child('hostUid').val() === auth.uid && newData.child('hostUid').val() === auth.uid))"
+          ".write": "auth != null && ((!data.exists() && newData.child('hostUid').val() === auth.uid) || (data.child('hostUid').val() === auth.uid && newData.child('hostUid').val() === auth.uid) || (root.child('rooms').child($roomCode).child('players').child(auth.uid).exists() && newData.child('hostUid').val() === data.child('hostUid').val() && newData.child('playerCount').val() === data.child('playerCount').val() && newData.child('createdAt').val() === data.child('createdAt').val() && newData.child('stageNo').isNumber() && newData.child('stageNo').val() === data.child('stageNo').val() + 1 && newData.numChildren() === data.numChildren()))"
         },
         "players": {
           ".read": "auth != null",
