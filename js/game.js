@@ -1,4 +1,4 @@
-import { createRoom, joinRoom, listRooms, watchPlayers, watchRoomInfo, watchChat, advanceRoomStage, updateMyPlayer, sendChat, leaveRoom } from "./online.js?v=20261116a";
+import { createRoom, joinRoom, listRooms, watchPlayers, watchRoomInfo, watchChat, advanceRoomStage, updateMyPlayer, sendChat, leaveRoom } from "./online.js?v=20261116b";
 const $=id=>document.getElementById(id),canvas=$("game"),ctx=canvas.getContext("2d"),W=960,H=540;
 const colors=["#4ed8ff","#ffae58","#b89cff","#83e28c"],maps=[{l:"a",r:"d",j:"w"},{l:"ArrowLeft",r:"ArrowRight",j:"ArrowUp"},{l:"j",r:"l",j:"i"},{l:"4",r:"6",j:"8"}];
 let L=null,P=[],K={},T={left:false,right:false,jump:false},selected=0,gateOpen=false,won=false,running=false,online=false,mySlot=-1,myUid=null,roomName="Player",lastSync=0,lastFrameAt=0,lastSentX=NaN,lastSentY=NaN,lastSentDone=false,currentStage=1,switchActivated=[],currentPlayerCount=2,currentRoom=null,roomInfoWatchStarted=false,stageTransitioning=false,completionHandled=false,lastSentSwitchMask=0;
@@ -155,6 +155,7 @@ function handleStageClear(){
  if(online){
   if(mySlot===0){
    advanceRoomStage(cleared).catch(error=>{
+    stageTransitioning=false;hideTransition();
     showError("次のステージへ進めませんでした："+(error.message||"Firebaseエラー"));
     $("goal").textContent="クリア済み · ホストの進行更新を待っています";
    });
@@ -193,7 +194,7 @@ function update(){
  P.forEach((p,i)=>{
   if(!p.active||p.done)return;
   switches.forEach((sw,index)=>{
-   if(Math.abs((p.y+p.h)-(sw.y+sw.h))>=5||p.x+p.w<=sw.x||p.x>=sw.x+sw.w)return;
+   const feet=p.y+p.h;if(feet<=sw.y||feet>=sw.y+sw.h+8||p.x+p.w<=sw.x||p.x>=sw.x+sw.w)return;
    if(!switchActivated[index]){switchActivated[index]=true;switchChanged=true;}
    const bit=1<<index;
    if((!online||i===mySlot)&&!((Number(p.switchMask)||0)&bit)){
