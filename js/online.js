@@ -347,15 +347,20 @@ export function watchRoomInfo(callback) {
 }
 
 export async function advanceRoomStage(expectedStage) {
-  if (!roomCode || !uid || slot !== 0) return false;
+  if (!roomCode || !uid) throw new Error("ルーム接続情報がありません");
+  if (slot !== 0) throw new Error("ホスト以外のプレイヤーからは進行できません");
   const infoRef = ref(db, "rooms/" + roomCode + "/info");
-  const result = await runTransaction(infoRef, current => {
-    if (!current || current.hostUid !== uid || Number(current.stageNo) !== Number(expectedStage)) return;
-    return {...current, stageNo:Number(expectedStage)+1, updatedAt:Date.now()};
-  }, {applyLocally:false});
-  if (!result.committed) return false;
-  info = result.snapshot.val();
-  await update(ref(db, "publicRooms/" + roomCode), {stageNo:Number(info.stageNo)})
+  const snapshot = await get(infoRef);
+  const current = snapshot.val();
+  if (!current || current.hostUid !== uid) throw new Error("ホスト認証に失敗しました");
+  if (Number(current.stageNo) !== Number(expectedStage)) {
+    // Another client may already have advanced this room.
+    return Number(current.stageNo) > Number(expectedStage);
+  }
+  const nextStage = Number(expectedStage) + 1;
+  await update(infoRef, {stageNo:nextStage, updatedAt:Date.now()});
+  info = {...current, stageNo:nextStage, updatedAt:Date.now()};
+  await update(ref(db, "publicRooms/" + roomCode), {stageNo:nextStage})
     .catch(error => console.warn("TOGETHER room stage listing:", error));
   return true;
 }

@@ -154,10 +154,12 @@ function handleStageClear(){
  showTransition("STAGE CLEAR！","STAGE "+String(next).padStart(2,"0")+" へ進みます");
  if(online){
   if(mySlot===0){
-   advanceRoomStage(cleared).catch(error=>{
+   advanceRoomStage(cleared).then(advanced=>{
+    if(!advanced)throw new Error("ホスト権限またはステージ番号が一致せず、進行を更新できませんでした");
+   }).catch(error=>{
     stageTransitioning=false;hideTransition();
     showError("次のステージへ進めませんでした："+(error.message||"Firebaseエラー"));
-    $("goal").textContent="クリア済み · ホストの進行更新を待っています";
+    $("goal").textContent="クリア済み · 進行更新に失敗しました";
    });
   }
  }else{
