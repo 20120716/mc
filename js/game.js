@@ -251,6 +251,7 @@ let gameLoopErrorShown=false;
 function loop(){
  try{update();}
  catch(error){
+  running=false;
   if(!gameLoopErrorShown){
    gameLoopErrorShown=true;
    console.error("TOGETHER game loop:",error);
